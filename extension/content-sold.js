@@ -75,16 +75,19 @@
         }
         if (soldPrice === 0) return;
 
-        // Shipping — look for delivery/shipping text
-        const shipEl = el.querySelector('[class*="shipping"], [class*="delivery"], [class*="freeXDays"], .s-item__shipping');
+        // Shipping — eBay 2026 uses su-styled-text spans with "delivery" or "shipping" text
         let shippingPrice = null;
-        if (shipEl) {
-          const text = shipEl.textContent || "";
-          if (text.toLowerCase().includes("free")) {
+        const allSpans = el.querySelectorAll("span");
+        for (const span of allSpans) {
+          const text = span.textContent?.trim() || "";
+          if (text.match(/free\s*(delivery|shipping)/i)) {
             shippingPrice = 0;
-          } else {
-            const match = text.match(/\$?([\d,]+\.?\d*)/);
-            if (match) shippingPrice = parseFloat(match[1].replace(",", ""));
+            break;
+          }
+          const shipMatch = text.match(/\+?\$?([\d,]+\.?\d*)\s*(delivery|shipping)/i);
+          if (shipMatch) {
+            shippingPrice = parseFloat(shipMatch[1].replace(",", ""));
+            break;
           }
         }
 
