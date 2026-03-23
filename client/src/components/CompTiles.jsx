@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ImageLightbox from "./ImageLightbox";
 
-export default function CompTiles({ comps }) {
+export default function CompTiles({ comps, tileSize = 220 }) {
   const [lightboxSrc, setLightboxSrc] = useState(null);
 
   if (!comps || comps.length === 0) {
@@ -18,7 +18,7 @@ export default function CompTiles({ comps }) {
       {lightboxSrc && (
         <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
       )}
-      <div style={grid}>
+      <div style={{ ...grid, gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}>
         {comps.map((comp, i) => (
           <Tile
             key={comp.id || comp.ebayItemId || i}

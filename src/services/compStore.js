@@ -171,35 +171,81 @@ async function getSearch(id) {
 }
 
 /**
- * List comps with filters and pagination.
+ * List comps with rich filtering and pagination.
  */
 async function listComps({
   keyword,
+  exclude,
   minPrice,
   maxPrice,
   condition,
   listingType,
+  seller,
+  dateFrom,
+  dateTo,
+  hasImage,
   limit = 50,
   offset = 0,
   sortBy = "soldDate",
   sortDir = "desc",
 } = {}) {
-  const where = {};
+  const andConditions = [];
 
+  // Include keyword (supports multiple terms with +)
   if (keyword) {
-    where.title = { contains: keyword, mode: "insensitive" };
+    const terms = keyword.split(/\s+/).filter(Boolean);
+    for (const term of terms) {
+      andConditions.push({ title: { contains: term, mode: "insensitive" } });
+    }
   }
+
+  // Exclude terms (supports multiple, comma or space separated)
+  if (exclude) {
+    const excludeTerms = exclude.split(/[,\s]+/).filter(Boolean);
+    for (const term of excludeTerms) {
+      andConditions.push({
+        NOT: { title: { contains: term, mode: "insensitive" } },
+      });
+    }
+  }
+
+  // Price range
   if (minPrice !== undefined || maxPrice !== undefined) {
-    where.soldPrice = {};
-    if (minPrice !== undefined) where.soldPrice.gte = parseFloat(minPrice);
-    if (maxPrice !== undefined) where.soldPrice.lte = parseFloat(maxPrice);
+    const priceFilter = {};
+    if (minPrice !== undefined) priceFilter.gte = parseFloat(minPrice);
+    if (maxPrice !== undefined) priceFilter.lte = parseFloat(maxPrice);
+    andConditions.push({ soldPrice: priceFilter });
   }
+
+  // Condition
   if (condition) {
-    where.condition = { contains: condition, mode: "insensitive" };
+    andConditions.push({ condition: { contains: condition, mode: "insensitive" } });
   }
+
+  // Listing type
   if (listingType) {
-    where.listingType = listingType;
+    andConditions.push({ listingType: { contains: listingType, mode: "insensitive" } });
   }
+
+  // Seller
+  if (seller) {
+    andConditions.push({ seller: { contains: seller, mode: "insensitive" } });
+  }
+
+  // Date range
+  if (dateFrom) {
+    andConditions.push({ soldDate: { gte: new Date(dateFrom) } });
+  }
+  if (dateTo) {
+    andConditions.push({ soldDate: { lte: new Date(dateTo) } });
+  }
+
+  // Has image
+  if (hasImage === "true" || hasImage === true) {
+    andConditions.push({ imageUrl: { not: null } });
+  }
+
+  const where = andConditions.length > 0 ? { AND: andConditions } : {};
 
   const [comps, total] = await Promise.all([
     prisma.soldComp.findMany({
