@@ -31,22 +31,42 @@
   function getPageCategory() {
     const junk = ["eBay", "All", "More", "See All", "Back", "Shop by Category", ""];
 
-    // eBay breadcrumbs: first few links are the path (eBay Motors > Parts > Motorcycle Parts)
-    // followed by sibling subcategory links. We want the path, not the siblings.
-    // The path links go to progressively deeper category IDs in the URL.
+    // eBay breadcrumbs: first few links are the hierarchical path
+    // e.g. "eBay Motors > Parts & Accessories > Motorcycle & Scooter Parts & Accessories"
+    // followed by sibling subcategory links at the same depth.
+    // We detect the path vs siblings by checking if category IDs are nested.
     const crumbLinks = document.querySelectorAll('.seo-breadcrumb-text a, [class*="breadcrumb"] a');
     if (crumbLinks.length > 0) {
       const links = Array.from(crumbLinks).map((a) => ({
         text: a.textContent?.trim(),
+        href: a.href || "",
         catId: a.href?.match(/\/(\d+)\//)?.[1] || "",
-      })).filter((l) => l.text && !junk.includes(l.text) && l.text.length > 1);
+      })).filter((l) => l.text && !junk.includes(l.text) && l.text.length > 1 && l.text.length < 80);
 
       if (links.length > 0) {
-        // Take the deepest category in the path (2nd or 3rd link typically)
-        // The path links have increasing category IDs; siblings are at same depth
-        // Use the 3rd link if available (most specific main category), else 2nd, else 1st
-        const pathDepth = Math.min(links.length, 3);
-        return links[pathDepth - 1].text;
+        // The path links are the first N links before siblings start.
+        // Path links have unique category IDs; siblings repeat the same depth.
+        // Heuristic: path links are the first 1-4 links. After that, if a link's
+        // URL pattern is the same depth as the previous, it's a sibling.
+        const path = [links[0]];
+        for (let i = 1; i < links.length; i++) {
+          // If URL structure shows this is a deeper category (different catId), it's path
+          // If it's a sibling (same URL structure, different category), stop
+          const prevParts = links[i - 1].href.split("/").length;
+          const curParts = links[i].href.split("/").length;
+          // Path links typically share the same URL structure with different catIds
+          // Once we see 4+ links at the same depth, they're siblings
+          if (path.length >= 4) break;
+          // If catId is different and this looks like a child, add to path
+          if (links[i].catId !== path[path.length - 1].catId) {
+            path.push(links[i]);
+          } else {
+            break;
+          }
+        }
+
+        // Return full path joined with " > "
+        return path.map((l) => l.text).join(" > ");
       }
     }
 

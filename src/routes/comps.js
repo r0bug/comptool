@@ -36,7 +36,7 @@ router.get("/facets", async (req, res) => {
     const [conditions, types, categories, shipping, images, total] = await Promise.all([
       prisma.soldComp.groupBy({ by: ["condition"], where: baseWhere, _count: true, orderBy: { _count: { condition: "desc" } }, take: 15 }),
       prisma.soldComp.groupBy({ by: ["listingType"], where: baseWhere, _count: true, orderBy: { _count: { listingType: "desc" } }, take: 10 }),
-      prisma.soldComp.groupBy({ by: ["category"], where: baseWhere, _count: true, orderBy: { _count: { category: "desc" } }, take: 25 }),
+      prisma.soldComp.groupBy({ by: ["category"], where: baseWhere, _count: true, orderBy: { _count: { category: "desc" } }, take: 50 }),
       prisma.soldComp.groupBy({
         by: ["shippingPrice"],
         where: { ...baseWhere, shippingPrice: 0 },
