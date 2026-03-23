@@ -219,13 +219,99 @@
     btn.textContent = "Save Comps";
     btn.addEventListener("click", handleSave);
 
+    const autoLabel = document.createElement("label");
+    autoLabel.style.cssText = "display:flex;align-items:center;gap:4px;font-size:12px;color:#666;cursor:pointer;margin-left:8px;";
+    const autoCheck = document.createElement("input");
+    autoCheck.type = "checkbox";
+    autoCheck.checked = autoImportEnabled;
+    autoCheck.addEventListener("change", () => {
+      autoImportEnabled = autoCheck.checked;
+      chrome.storage.sync.set({ autoImport: autoCheck.checked });
+    });
+    autoLabel.appendChild(autoCheck);
+    autoLabel.appendChild(document.createTextNode("Auto-import"));
+
     const status = document.createElement("span");
     status.id = STATUS_ID;
     status.className = "comptool-status";
 
     container.appendChild(btn);
+    container.appendChild(autoLabel);
     container.appendChild(status);
     target.parentNode.insertBefore(container, target);
+  }
+
+  // ─── Auto-import logic ──────────────────────────────
+  let lastResultsHash = "";
+  let autoSaveTimer = null;
+  let autoImportEnabled = true;
+
+  // Load auto-import setting from storage
+  chrome.storage.sync.get("autoImport", (data) => {
+    autoImportEnabled = data.autoImport !== false; // default ON
+  });
+  // Listen for setting changes in real-time
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.autoImport) {
+      autoImportEnabled = changes.autoImport.newValue !== false;
+    }
+  });
+
+  function hashResults() {
+    // Quick fingerprint of visible results to detect changes
+    const rows = document.querySelectorAll(
+      ".sold-result-table table tr:not(.research-table-header)"
+    );
+    if (rows.length === 0) return "";
+    const first = rows[0]?.textContent?.trim().slice(0, 100) || "";
+    const last = rows[rows.length - 1]?.textContent?.trim().slice(0, 100) || "";
+    return `${rows.length}|${first}|${last}`;
+  }
+
+  async function checkAndAutoSave() {
+    if (!autoImportEnabled) return;
+
+    const settings = await chrome.storage.sync.get(["apiUrl", "apiKey"]);
+    if (!settings.apiUrl || !settings.apiKey) return;
+
+    const hash = hashResults();
+    if (!hash || hash === lastResultsHash) return;
+
+    const keyword = getKeyword();
+    if (!keyword) return;
+
+    const items = scrapeResults();
+    if (items.length === 0) return;
+
+    lastResultsHash = hash;
+    setStatus(`Auto-saving ${items.length} comps...`, "info");
+
+    try {
+      const apiUrl = settings.apiUrl.replace(/\/+$/, "");
+      const machineId = await getMachineId();
+      const resp = await fetch(`${apiUrl}/comp/api/ingest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": settings.apiKey,
+          "X-Machine-Id": machineId,
+        },
+        body: JSON.stringify({ keyword, items, source: "extension" }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${resp.status}`);
+      }
+
+      const result = await resp.json();
+      setStatus(
+        `Auto-saved ${result.resultCount} comps (avg $${result.stats.avg?.toFixed(2)}, median $${result.stats.median?.toFixed(2)})`,
+        "success"
+      );
+    } catch (err) {
+      setStatus(`Auto-save failed: ${err.message}`, "error");
+    }
   }
 
   // Watch for the results table to appear (Terapeak is an SPA)
@@ -234,9 +320,16 @@
 
     const observer = new MutationObserver(() => {
       injectButton();
+
+      // Debounce auto-save check — wait for DOM to settle after changes
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(checkAndAutoSave, 2000);
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+
+    // Also check once after initial load
+    setTimeout(checkAndAutoSave, 3000);
   }
 
   // Start

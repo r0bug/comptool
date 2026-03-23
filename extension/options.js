@@ -7,11 +7,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const machineIdInput = document.getElementById("machineId");
   const resetMachineLink = document.getElementById("resetMachineId");
+  const autoImportCheck = document.getElementById("autoImport");
 
   // Load saved settings
-  const settings = await chrome.storage.sync.get(["apiUrl", "apiKey"]);
+  const settings = await chrome.storage.sync.get(["apiUrl", "apiKey", "autoImport"]);
   if (settings.apiUrl) apiUrlInput.value = settings.apiUrl;
   if (settings.apiKey) apiKeyInput.value = settings.apiKey;
+  autoImportCheck.checked = settings.autoImport !== false; // default ON
+
+  autoImportCheck.addEventListener("change", async () => {
+    await chrome.storage.sync.set({ autoImport: autoImportCheck.checked });
+  });
 
   // Load or generate machine ID
   let { machineId } = await chrome.storage.local.get("machineId");
@@ -39,7 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    await chrome.storage.sync.set({ apiUrl, apiKey });
+    await chrome.storage.sync.set({ apiUrl, apiKey, autoImport: autoImportCheck.checked });
     statusMsg.textContent = "Saved!";
     statusMsg.className = "ok";
     setTimeout(() => { statusMsg.textContent = ""; }, 2000);

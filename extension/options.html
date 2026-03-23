@@ -36,6 +36,12 @@
   <input type="password" id="apiKey" placeholder="ct_your-api-key">
   <div class="hint">Get your key at <a href="https://listflow.robug.com/comp/register">listflow.robug.com/comp/register</a></div>
 
+  <label style="margin-top: 16px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+    <input type="checkbox" id="autoImport" style="width: 16px; height: 16px;">
+    Auto-import comps when Terapeak results load
+  </label>
+  <div class="hint">When enabled, comps are saved automatically when you search or change pages on Terapeak</div>
+
   <label>Machine ID</label>
   <input type="text" id="machineId" readonly style="background: #f5f5f5; color: #666; cursor: default;">
   <div class="hint">Identifies this browser installation. <a href="#" id="resetMachineId">Reset</a></div>
