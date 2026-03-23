@@ -187,8 +187,10 @@
 
     try {
       const result = await saveComps(items, keyword);
+      const count = result?.resultCount || items.length;
+      const avg = result?.stats?.avg;
       setStatus(
-        `Saved ${result.resultCount} comps (avg $${result.stats.avg?.toFixed(2)}, median $${result.stats.median?.toFixed(2)})`,
+        `Saved ${count} comps${avg ? ` (avg $${avg.toFixed(2)})` : ""}`,
         "success"
       );
     } catch (err) {
