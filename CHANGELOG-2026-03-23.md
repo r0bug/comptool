@@ -28,5 +28,5 @@
 - Tracks usage count, last used, and machine on every authenticated request
 
 ## Access
-- Admin: http://localhost:5173/comp/admin (password: comptool-admin-2026)
-- Register: http://localhost:5173/comp/register
+- Admin: https://listflow.robug.com/comp/admin (password in .env)
+- Register: https://listflow.robug.com/comp/register

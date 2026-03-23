@@ -67,6 +67,9 @@ Individual sold eBay items (comps).
 | category | String? | eBay category |
 | listingType | String? | "Fixed price", "Auction" |
 | bidCount | Int? | Auction bid count |
+| quantitySold | Int? | Units sold (Terapeak) |
+| totalSales | Float? | Total sales volume (Terapeak) |
+| watchers | Int? | Watcher count |
 | seller | String? | Seller username |
 | sellerFeedback | Int? | Feedback score |
 | imageUrl | String? | Original eBay image URL |

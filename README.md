@@ -1,26 +1,58 @@
 # CompTool — eBay Sold Comps Research Tool
+### Alpha Release 1 (v1.4.1) — 2026-03-23
 
-Research what items sell for on eBay by scraping Terapeak/Seller Hub data via a Chrome extension, storing everything in PostgreSQL, and providing a searchable dashboard with price analytics.
+Research what items sell for on eBay by scraping Terapeak and eBay sold search data via a Chrome extension, storing everything in PostgreSQL, and providing a rich searchable dashboard with price analytics.
+
+**Live:** [listflow.robug.com/comp](https://listflow.robug.com/comp)
 
 ## How It Works
 
-1. **Install the Chrome extension** — it injects into eBay's Terapeak Research page
-2. **Search on Terapeak** — the extension auto-imports results (or click "Save Comps")
-3. **Browse your data** at the web dashboard — search, filter, tile/table views, price stats
-4. **Build a pricing database** — every comp is stored with images cached locally
+1. **Install the Chrome extension** — it injects into eBay Terapeak Research and sold search pages
+2. **Browse eBay normally** — the extension auto-imports sold comps as you search (Terapeak, sold items filter, seller stores)
+3. **Browse your data** at the web dashboard — rich pivot search with exclude terms, scalable tile/table views, price stats
+4. **Build a pricing database** — every comp is stored with images cached locally, progressively enriched across sources
 
 ## Features
 
-- **Chrome Extension (v1.2)** — Manifest V3 content script on Terapeak pages. Auto-imports comps when results load. Configurable API URL/key. Machine ID tracking per installation.
-- **Browse Page** — Search all comps with keyword, price range, condition, and listing type filters. Table and tile views with server-side sorting and pagination.
-- **Tile View** — Image grid with price badges. Hover for full details (title, price, shipping, type, date). Copy URL / item number for sell-similar.
-- **Image Lightbox** — Click any comp image to view full-size. Scroll to zoom (up to 5x), drag to pan.
-- **Image Caching** — eBay image URLs expire; CompTool downloads and caches them locally so you never lose product photos.
-- **Price Statistics** — Avg, median, min, max, percentiles per search keyword.
-- **Search History** — Every scrape is logged with result count and computed stats.
-- **Client Management (SaaS-ready)** — Multi-tenant with Client, ApiKey, Machine models. Admin panel for managing clients, generating/revoking API keys, viewing usage.
-- **Registration Portal** — Public signup form issues API keys for new users.
-- **API Key Auth** — Database-backed key validation with usage tracking. Backward-compatible env fallback.
+### Chrome Extension (v1.4.1)
+- Manifest V3 content scripts on **Terapeak Research** and **eBay sold search** pages
+- **Auto-import** — comps save automatically when results load (toggle on/off)
+- Works on: keyword search + sold filter, seller store pages, category pages, filtered views
+- Captures: title, price, shipping, condition, seller, feedback, bids, quantity sold, total sales, watchers, images, sold date
+- **Smart keyword detection** — extracts from URL params, seller name, page heading, breadcrumbs, or page title
+- Machine ID tracking per installation, configurable API URL/key
+- Self-update version checking from server
+
+### Browse & Search
+- **Rich pivot search** — keyword with exclude terms (NOT filter), price range, condition, listing type, seller name, date range
+- **"Detailed Only" filter** — exclude Terapeak items missing condition/seller data for cleaner analysis
+- **Scalable tile view** — drag slider to resize tiles (140px–400px), hover for full details + action buttons (View on eBay, Copy URL, Copy Item #)
+- **Table view** — sortable columns with clickable image thumbnails
+- **9 sort options** — newest, oldest, price high/low, total high/low, title A-Z, recently added
+- **Active filter pills** — visual feedback with one-click removal
+- **Full pagination** — page size selector (25/50/100/200), numbered pages
+
+### Image System
+- **Lightbox** — click any image to zoom (scroll 0.25x–5x), drag to pan, keyboard shortcuts
+- **Image caching** — downloads eBay images locally before URLs expire
+- **Backfill** — bulk cache all uncached images via API endpoint
+
+### Smart Data Enrichment
+- **Progressive upsert** — same item scraped from multiple sources (Terapeak + sold search) gets enriched, never overwritten with nulls
+- **Terapeak** captures: title, price, shipping, listing type, bids, quantity sold, total sales, image, date
+- **Sold search** captures: all of above + condition, seller, feedback, watchers, category
+
+### SaaS-Ready Client Management
+- Multi-tenant with Client, ApiKey, Machine models
+- **Admin panel** — dashboard stats, client CRUD, generate/revoke API keys, view machines and usage
+- **Registration portal** — public signup form issues `ct_` prefixed API keys
+- Database-backed auth with usage tracking, backward-compatible env fallback
+- Plan tiers (free/pro/enterprise) and billing placeholders (Stripe)
+
+### Stats & Analytics
+- Price statistics per search: avg, median, min, max, percentiles, count
+- Global stats in footer: total comps, searches, cached images, storage used
+- Search history with per-search stats
 
 ## Tech Stack
 
