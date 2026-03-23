@@ -19,6 +19,40 @@ router.get("/extension/version", (req, res) => {
   }
 });
 
+// Global stats for footer
+router.get("/stats", async (req, res) => {
+  try {
+    const prisma = require("../config/database");
+    const fs = require("fs");
+    const path = require("path");
+    const imgDir = path.join(__dirname, "../../data/images");
+
+    const [compCount, searchCount, cachedImages] = await Promise.all([
+      prisma.soldComp.count(),
+      prisma.search.count(),
+      prisma.soldComp.count({ where: { localImage: { not: null } } }),
+    ]);
+
+    // Estimate storage from image count * avg size (faster than scanning disk)
+    let storageMb = 0;
+    try {
+      const files = fs.readdirSync(imgDir);
+      // Sample first 20 files for avg size
+      let sampleSize = 0;
+      const sample = files.slice(0, 20);
+      for (const f of sample) {
+        try { sampleSize += fs.statSync(path.join(imgDir, f)).size; } catch {}
+      }
+      const avgSize = sample.length > 0 ? sampleSize / sample.length : 0;
+      storageMb = Math.round((avgSize * files.length) / (1024 * 1024));
+    } catch {}
+
+    res.json({ compCount, searchCount, cachedImages, storageMb });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.use("/search", require("./search"));
 router.use("/comps", require("./comps"));
 router.use("/browser", require("./browser"));
