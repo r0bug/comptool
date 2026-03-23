@@ -1,0 +1,312 @@
+// CompTool Content Script — eBay sold search results (public search pages)
+// Detects sold items on regular eBay search pages (LH_Sold=1 / LH_Complete=1)
+// and auto-imports them.
+
+(function () {
+  "use strict";
+
+  const BUTTON_ID = "comptool-sold-save-btn";
+  const STATUS_ID = "comptool-sold-status";
+
+  // Only activate if this is a sold/completed items search
+  function isSoldSearch() {
+    const url = new URL(window.location.href);
+    return url.searchParams.get("LH_Sold") === "1" ||
+           url.searchParams.get("LH_Complete") === "1" ||
+           document.querySelector('.srp-controls__count-heading')?.textContent?.toLowerCase().includes('sold');
+  }
+
+  function scrapeResults() {
+    const items = [];
+    const listings = document.querySelectorAll(".s-item");
+
+    listings.forEach((el) => {
+      try {
+        const titleEl = el.querySelector(".s-item__title");
+        if (!titleEl || titleEl.textContent?.includes("Shop on eBay")) return;
+
+        // Item ID from link
+        const linkEl = el.querySelector(".s-item__link");
+        const itemUrl = linkEl?.href || "";
+        const idMatch = itemUrl.match(/\/itm\/(\d+)/);
+        const ebayItemId = idMatch
+          ? idMatch[1]
+          : `pub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        const title = titleEl?.textContent?.trim() || "";
+        if (!title || title.length < 3) return;
+
+        // Price — sold items show in green with strikethrough original
+        const priceEl = el.querySelector(".s-item__price");
+        let soldPrice = 0;
+        if (priceEl) {
+          const match = priceEl.textContent.match(/\$?([\d,]+\.?\d*)/);
+          if (match) soldPrice = parseFloat(match[1].replace(",", ""));
+        }
+        if (soldPrice === 0) return;
+
+        // Shipping
+        const shipEl = el.querySelector(".s-item__shipping, .s-item__freeXDays");
+        let shippingPrice = null;
+        if (shipEl) {
+          const text = shipEl.textContent || "";
+          if (text.toLowerCase().includes("free")) {
+            shippingPrice = 0;
+          } else {
+            const match = text.match(/\$?([\d,]+\.?\d*)/);
+            if (match) shippingPrice = parseFloat(match[1].replace(",", ""));
+          }
+        }
+
+        // Condition
+        const condEl = el.querySelector(".SECONDARY_INFO");
+        const condition = condEl?.textContent?.trim() || null;
+
+        // Seller
+        const sellerEl = el.querySelector(".s-item__seller-info-text");
+        let seller = null;
+        let sellerFeedback = null;
+        if (sellerEl) {
+          const text = sellerEl.textContent || "";
+          const sellerMatch = text.match(/^([^(]+)/);
+          seller = sellerMatch ? sellerMatch[1].trim() : null;
+          const fbMatch = text.match(/\((\d+)\)/);
+          sellerFeedback = fbMatch ? parseInt(fbMatch[1]) : null;
+        }
+
+        // Listing type / bids
+        const bidEl = el.querySelector(".s-item__bids");
+        let listingType = "Fixed price";
+        let bidCount = null;
+        if (bidEl) {
+          listingType = "Auction";
+          const bidMatch = bidEl.textContent?.match(/(\d+)\s*bid/);
+          bidCount = bidMatch ? parseInt(bidMatch[1]) : null;
+        }
+
+        // Image
+        const imgEl = el.querySelector(".s-item__image-img");
+        const imageUrl = imgEl?.src || null;
+
+        // Sold date
+        const dateEl = el.querySelector(".s-item__caption--signal, .POSITIVE");
+        let soldDate = new Date().toISOString();
+        if (dateEl) {
+          const dateMatch = dateEl.textContent?.match(/Sold\s+(.+)/i);
+          if (dateMatch) {
+            const parsed = new Date(dateMatch[1]);
+            if (!isNaN(parsed.getTime())) soldDate = parsed.toISOString();
+          }
+        }
+
+        const totalPrice = shippingPrice !== null ? soldPrice + shippingPrice : soldPrice;
+
+        items.push({
+          ebayItemId,
+          title,
+          soldPrice,
+          shippingPrice,
+          totalPrice,
+          condition,
+          category: null,
+          listingType,
+          bidCount,
+          seller,
+          sellerFeedback,
+          imageUrl,
+          itemUrl: itemUrl || null,
+          soldDate,
+        });
+      } catch {
+        // skip unparseable
+      }
+    });
+
+    return items;
+  }
+
+  function getKeyword() {
+    const url = new URL(window.location.href);
+    return url.searchParams.get("_nkw") || "";
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById(STATUS_ID);
+    if (!el) return;
+    el.textContent = msg;
+    el.className = `comptool-status comptool-status--${type}`;
+    if (type === "success" || type === "error") {
+      setTimeout(() => { el.textContent = ""; el.className = "comptool-status"; }, 5000);
+    }
+  }
+
+  async function getMachineId() {
+    let { machineId } = await chrome.storage.local.get("machineId");
+    if (!machineId) {
+      machineId = crypto.randomUUID();
+      await chrome.storage.local.set({ machineId });
+    }
+    return machineId;
+  }
+
+  async function saveComps(items, keyword) {
+    const settings = await chrome.storage.sync.get(["apiUrl", "apiKey"]);
+    if (!settings.apiUrl || !settings.apiKey) return;
+
+    const apiUrl = settings.apiUrl.replace(/\/+$/, "");
+    const machineId = await getMachineId();
+    const resp = await fetch(`${apiUrl}/comp/api/ingest`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": settings.apiKey,
+        "X-Machine-Id": machineId,
+      },
+      body: JSON.stringify({ keyword, items, source: "extension" }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    return resp.json();
+  }
+
+  async function handleSave() {
+    const btn = document.getElementById(BUTTON_ID);
+    if (!btn) return;
+
+    const keyword = getKeyword();
+    if (!keyword) { setStatus("No keyword found", "error"); return; }
+
+    const items = scrapeResults();
+    if (items.length === 0) { setStatus("No sold items found on this page", "error"); return; }
+
+    btn.disabled = true;
+    btn.textContent = `Saving ${items.length} comps...`;
+
+    try {
+      const result = await saveComps(items, keyword);
+      setStatus(
+        `Saved ${result.resultCount} comps (avg $${result.stats.avg?.toFixed(2)}, median $${result.stats.median?.toFixed(2)})`,
+        "success"
+      );
+    } catch (err) {
+      setStatus(`Error: ${err.message}`, "error");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save Sold Comps";
+    }
+  }
+
+  // ─── Auto-import ──────────────────────────────────
+  let lastHash = "";
+  let autoTimer = null;
+  let autoEnabled = true;
+
+  chrome.storage.sync.get("autoImport", (data) => {
+    autoEnabled = data.autoImport !== false;
+  });
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.autoImport) autoEnabled = changes.autoImport.newValue !== false;
+  });
+
+  function hashResults() {
+    const items = document.querySelectorAll(".s-item");
+    if (items.length === 0) return "";
+    const first = items[0]?.textContent?.trim().slice(0, 80) || "";
+    const last = items[items.length - 1]?.textContent?.trim().slice(0, 80) || "";
+    return `${items.length}|${first}|${last}`;
+  }
+
+  async function checkAutoSave() {
+    if (!autoEnabled) return;
+    if (!isSoldSearch()) return;
+
+    const settings = await chrome.storage.sync.get(["apiUrl", "apiKey"]);
+    if (!settings.apiUrl || !settings.apiKey) return;
+
+    const hash = hashResults();
+    if (!hash || hash === lastHash) return;
+
+    const keyword = getKeyword();
+    if (!keyword) return;
+
+    const items = scrapeResults();
+    if (items.length === 0) return;
+
+    lastHash = hash;
+    setStatus(`Auto-saving ${items.length} sold comps...`, "info");
+
+    try {
+      const result = await saveComps(items, keyword);
+      setStatus(
+        `Auto-saved ${result.resultCount} comps (avg $${result.stats.avg?.toFixed(2)}, median $${result.stats.median?.toFixed(2)})`,
+        "success"
+      );
+    } catch (err) {
+      setStatus(`Auto-save failed: ${err.message}`, "error");
+    }
+  }
+
+  // ─── UI injection ──────────────────────────────────
+  function injectButton() {
+    if (!isSoldSearch()) return;
+    if (document.getElementById(BUTTON_ID)) return;
+
+    const target = document.querySelector(".srp-controls") ||
+                   document.querySelector(".srp-results") ||
+                   document.querySelector("#srp-river-results");
+    if (!target) return;
+
+    const container = document.createElement("div");
+    container.className = "comptool-toolbar";
+
+    const btn = document.createElement("button");
+    btn.id = BUTTON_ID;
+    btn.textContent = "Save Sold Comps";
+    btn.addEventListener("click", handleSave);
+
+    const autoLabel = document.createElement("label");
+    autoLabel.style.cssText = "display:flex;align-items:center;gap:4px;font-size:12px;color:#666;cursor:pointer;margin-left:8px;";
+    const autoCheck = document.createElement("input");
+    autoCheck.type = "checkbox";
+    autoCheck.checked = autoEnabled;
+    autoCheck.addEventListener("change", () => {
+      autoEnabled = autoCheck.checked;
+      chrome.storage.sync.set({ autoImport: autoCheck.checked });
+    });
+    autoLabel.appendChild(autoCheck);
+    autoLabel.appendChild(document.createTextNode("Auto-import"));
+
+    const status = document.createElement("span");
+    status.id = STATUS_ID;
+    status.className = "comptool-status";
+
+    container.appendChild(btn);
+    container.appendChild(autoLabel);
+    container.appendChild(status);
+    target.parentNode.insertBefore(container, target);
+  }
+
+  function start() {
+    if (!isSoldSearch()) return;
+
+    injectButton();
+
+    const observer = new MutationObserver(() => {
+      injectButton();
+      if (autoTimer) clearTimeout(autoTimer);
+      autoTimer = setTimeout(checkAutoSave, 2000);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    setTimeout(checkAutoSave, 3000);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+})();

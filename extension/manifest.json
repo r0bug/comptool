@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "CompTool - eBay Sold Comps",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Scrape eBay Terapeak sold comps and save to your CompTool database",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
-    "https://www.ebay.com/sh/research*",
+    "https://www.ebay.com/*",
     "https://listflow.robug.com/*",
     "http://localhost:3002/*"
   ],
@@ -13,6 +13,12 @@
     {
       "matches": ["https://www.ebay.com/sh/research*"],
       "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.ebay.com/sch/*"],
+      "js": ["content-sold.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }
