@@ -11,6 +11,10 @@
     "db:migrate": "npx prisma migrate dev",
     "db:generate": "npx prisma generate",
     "db:studio": "npx prisma studio",
+    "enricher": "node src/services/enricher.js",
+    "enricher:start": "pm2 start src/services/enricher.js --name comptool-enricher",
+    "enricher:stop": "pm2 stop comptool-enricher",
+    "enricher:logs": "pm2 logs comptool-enricher --lines 50",
     "ext:build": "cd extension && zip -r ../public/comptool-extension.zip . -x '.*'"
   },
   "keywords": [],

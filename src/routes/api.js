@@ -53,6 +53,18 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// Enrichment worker status
+router.get("/enricher/status", (req, res) => {
+  const fs = require("fs");
+  const path = require("path");
+  try {
+    const data = JSON.parse(fs.readFileSync(path.join(__dirname, "../../data/enricher-status.json"), "utf-8"));
+    res.json(data);
+  } catch {
+    res.json({ running: false, processed: 0, enriched: 0, failed: 0, skipped: 0, message: "Enricher not running" });
+  }
+});
+
 router.use("/search", require("./search"));
 router.use("/comps", require("./comps"));
 router.use("/browser", require("./browser"));
