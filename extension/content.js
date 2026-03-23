@@ -138,7 +138,14 @@
 
     // Fall back to URL param
     const url = new URL(window.location.href);
-    return url.searchParams.get("keywords") || "";
+    const kw = url.searchParams.get("keywords");
+    if (kw) return kw;
+
+    // Page title as last resort
+    const pageTitle = document.title.replace(/\s*[|\-–].*$/, "").trim();
+    if (pageTitle && pageTitle.length > 2) return pageTitle;
+
+    return "uncategorized";
   }
 
   function setStatus(msg, type) {

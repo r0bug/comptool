@@ -11,9 +11,21 @@
 
   function isSoldSearch() {
     const url = new URL(window.location.href);
-    return url.searchParams.get("LH_Sold") === "1" ||
-           url.searchParams.get("LH_Complete") === "1" ||
-           document.querySelector('.srp-controls__count-heading')?.textContent?.toLowerCase().includes('sold');
+    // URL param check
+    if (url.searchParams.get("LH_Sold") === "1" || url.searchParams.get("LH_Complete") === "1") return true;
+    // Sold filter active in sidebar
+    if (document.querySelector('[class*="sold" i].filter--applied, .x-refine__select__svg--soldItems')) return true;
+    // "Sold" in heading or active filter text
+    const pageText = (document.querySelector('.srp-controls__count-heading')?.textContent || "") +
+                     (document.querySelector('[class*="applied-filter"]')?.textContent || "");
+    if (pageText.toLowerCase().includes("sold")) return true;
+    // Cards with "Sold" date text
+    const cards = document.querySelectorAll('.srp-results li.s-card');
+    if (cards.length > 0) {
+      const sampleText = cards[0]?.textContent || "";
+      if (sampleText.match(/Sold\s+\w+\s+\d+/i)) return true;
+    }
+    return false;
   }
 
   function scrapeResults() {
@@ -142,7 +154,33 @@
 
   function getKeyword() {
     const url = new URL(window.location.href);
-    return url.searchParams.get("_nkw") || "";
+    // Try keyword param first
+    const nkw = url.searchParams.get("_nkw");
+    if (nkw) return nkw;
+
+    // Seller store page — use seller name as keyword
+    const sellerMatch = url.pathname.match(/\/seller\/([^/]+)/i) ||
+                        url.pathname.match(/\/usr\/([^/]+)/i) ||
+                        url.pathname.match(/\/str\/([^/]+)/i);
+    if (sellerMatch) return `seller:${sellerMatch[1]}`;
+
+    // Try the search heading on the page
+    const heading = document.querySelector('.srp-controls__count-heading, [class*="result-count"], h1');
+    if (heading) {
+      const text = heading.textContent?.trim();
+      const match = text?.match(/results?\s+for\s+(.+)/i);
+      if (match) return match[1].trim();
+    }
+
+    // Category page — use breadcrumb
+    const breadcrumb = document.querySelector('[class*="breadcrumb"] li:last-child, .seo-breadcrumb-text');
+    if (breadcrumb) return breadcrumb.textContent?.trim();
+
+    // Last resort — use page title
+    const pageTitle = document.title.replace(/\s*[|\-–].*$/, "").replace(/sold.*$/i, "").trim();
+    if (pageTitle && pageTitle.length > 2 && pageTitle !== "eBay") return pageTitle;
+
+    return "uncategorized";
   }
 
   function setStatus(msg, type) {
@@ -192,8 +230,6 @@
     if (!btn) return;
 
     const keyword = getKeyword();
-    if (!keyword) { setStatus("No keyword found", "error"); return; }
-
     const items = scrapeResults();
     if (items.length === 0) { setStatus("No sold items found on this page", "error"); return; }
 
@@ -247,8 +283,6 @@
     if (!hash || hash === lastHash) return;
 
     const keyword = getKeyword();
-    if (!keyword) return;
-
     const items = scrapeResults();
     if (items.length === 0) return;
 
