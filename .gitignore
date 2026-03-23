@@ -6,7 +6,7 @@ client/dist/
 .DS_Store
 .browser-data/
 .ebay-cookies.json
-data/images/
+data/
 comptool-export.json
 src/generated/
 public/
