@@ -20,11 +20,16 @@ export default function CompTiles({ comps, tileSize = 220 }) {
     setCtxMenu({ comp, x: e.clientX, y: e.clientY });
   }
 
+  // On mobile, force 4 columns regardless of tileSize
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+  const effectiveSize = isMobile ? Math.floor((window.innerWidth - 40) / 4) : tileSize;
+  const gap = isMobile ? 4 : 10;
+
   return (
     <>
       {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
       {ctxMenu && <CompContextMenu comp={ctxMenu.comp} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />}
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))`, gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : `repeat(auto-fill, minmax(${tileSize}px, 1fr))`, gap }}>
         {comps.map((comp, i) => {
           const src = getImgSrc(comp);
           return (
@@ -45,7 +50,9 @@ export default function CompTiles({ comps, tileSize = 220 }) {
 
 function Tile({ comp, imgSrc, onImageClick, onContextMenu, tileSize }) {
   const [hovered, setHovered] = useState(false);
-  const showDetails = tileSize >= 180;
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+  const isCompact = isMobile || tileSize < 160;
+  const showDetails = !isCompact && tileSize >= 180;
 
   return (
     <div
@@ -62,18 +69,19 @@ function Tile({ comp, imgSrc, onImageClick, onContextMenu, tileSize }) {
           <div style={noImg}>No Image</div>
         )}
         {/* Price badge */}
-        <div style={{ ...priceBadge, background: comp.listingType === "Auction" ? "#ff9800" : "#4caf50" }}>
+        <div style={{ ...priceBadge, background: comp.listingType === "Auction" ? "#ff9800" : "#4caf50", fontSize: isCompact ? 10 : 13, padding: isCompact ? "2px 4px" : "3px 8px" }}>
           ${comp.soldPrice?.toFixed(2)}
         </div>
         {/* Condition badge */}
-        {comp.condition && (
+        {comp.condition && !isCompact && (
           <div style={condBadge}>{comp.condition}</div>
         )}
       </div>
 
-      {/* Info bar — always visible */}
-      <div style={infoBar}>
-        <div style={titleText}>{comp.title}</div>
+      {/* Info bar — hidden on very compact tiles */}
+      {!isCompact && (
+        <div style={infoBar}>
+          <div style={titleText}>{comp.title}</div>
         {hovered && showDetails && (
           <div style={detailsRow}>
             {comp.shippingPrice != null && (
@@ -85,6 +93,7 @@ function Tile({ comp, imgSrc, onImageClick, onContextMenu, tileSize }) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

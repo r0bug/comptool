@@ -150,13 +150,19 @@ export default function BrowsePage() {
   const filterCount = [keyword, exclude, minPrice, maxPrice, condition, category, listingType, seller, dateFrom, dateTo, hasImage, richOnly].filter(Boolean).length;
 
   return (
-    <div style={{ display: "flex", gap: 16 }}>
+    <div className="ct-browse">
+      <style>{browseStyles}</style>
+      {/* Sidebar overlay on mobile */}
+      {showSidebar && <div className="ct-sidebar-overlay" onClick={() => setShowSidebar(false)} />}
       {/* Sidebar with facets */}
       {showSidebar && (
-        <div style={sidebar}>
+        <div className="ct-sidebar">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "#aaa" }}>Filters</span>
-            <span style={{ fontSize: 11, color: "#555" }}>{facets?.total?.toLocaleString() || 0} total</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 11, color: "#555" }}>{facets?.total?.toLocaleString() || 0} total</span>
+              <button className="ct-sidebar-close" onClick={() => setShowSidebar(false)}>&times;</button>
+            </div>
           </div>
 
           {/* Price */}
@@ -304,7 +310,32 @@ function genPages(cur, total) {
   return p;
 }
 
-const sidebar = { width: 220, flexShrink: 0, background: "#111827", border: "1px solid #0f3460", borderRadius: 8, padding: 14, alignSelf: "flex-start", position: "sticky", top: 16 };
+const browseStyles = `
+  .ct-browse { display: flex; gap: 16px; }
+  .ct-sidebar {
+    width: 220px; flex-shrink: 0; background: #111827; border: 1px solid #0f3460;
+    border-radius: 8px; padding: 14px; align-self: flex-start; position: sticky; top: 16px;
+  }
+  .ct-sidebar-overlay { display: none; }
+  .ct-sidebar-close { display: none; background: none; border: none; color: #888; font-size: 20px; cursor: pointer; }
+  .ct-browse-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px; }
+  .ct-browse-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+  @media (max-width: 768px) {
+    .ct-browse { flex-direction: column; gap: 0; }
+    .ct-sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 280px; z-index: 200;
+      border-radius: 0; overflow-y: auto; border: none; border-right: 1px solid #0f3460;
+    }
+    .ct-sidebar-overlay {
+      display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 199;
+    }
+    .ct-sidebar-close { display: block; }
+    .ct-browse-toolbar { flex-direction: column; align-items: stretch; }
+    .ct-browse-controls { justify-content: space-between; }
+  }
+`;
+
 const sideSection = { marginBottom: 12 };
 const sideLabel = { fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 };
 const sideInput = { width: "100%", padding: "6px 8px", background: "#16213e", border: "1px solid #0f3460", borderRadius: 4, color: "#eee", fontSize: 12, outline: "none", boxSizing: "border-box" };
