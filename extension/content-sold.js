@@ -31,31 +31,33 @@
   function getPageCategory() {
     const junk = ["eBay", "All", "More", "See All", "Back", "Shop by Category", ""];
 
-    // Try breadcrumb links (most reliable — actual category path)
+    // eBay breadcrumbs: first few links are the path (eBay Motors > Parts > Motorcycle Parts)
+    // followed by sibling subcategory links. We want the path, not the siblings.
+    // The path links go to progressively deeper category IDs in the URL.
     const crumbLinks = document.querySelectorAll('.seo-breadcrumb-text a, [class*="breadcrumb"] a');
     if (crumbLinks.length > 0) {
-      const parts = Array.from(crumbLinks)
-        .map((a) => a.textContent?.trim())
-        .filter((t) => t && !junk.includes(t) && t.length > 1 && t.length < 60);
-      if (parts.length > 0) return parts[parts.length - 1];
+      const links = Array.from(crumbLinks).map((a) => ({
+        text: a.textContent?.trim(),
+        catId: a.href?.match(/\/(\d+)\//)?.[1] || "",
+      })).filter((l) => l.text && !junk.includes(l.text) && l.text.length > 1);
+
+      if (links.length > 0) {
+        // Take the deepest category in the path (2nd or 3rd link typically)
+        // The path links have increasing category IDs; siblings are at same depth
+        // Use the 3rd link if available (most specific main category), else 2nd, else 1st
+        const pathDepth = Math.min(links.length, 3);
+        return links[pathDepth - 1].text;
+      }
     }
 
     // Try the selected/active category in the sidebar filter
     const activeCategory = document.querySelector(
       '.x-refine__left__nav [class*="selected"] a, ' +
-      '.x-refine__left__nav .x-refine__multi-select--active, ' +
       '[class*="category"] [aria-current="page"]'
     );
     if (activeCategory) {
       const text = activeCategory.textContent?.trim().replace(/\(\d[\d,]*\)$/, "").trim();
       if (text && !junk.includes(text)) return text;
-    }
-
-    // Try the category heading in sidebar
-    const catHeading = document.querySelector('.x-refine__left__nav h2, [class*="category"] [class*="heading"]');
-    if (catHeading) {
-      const text = catHeading.textContent?.trim();
-      if (text && !junk.includes(text) && text !== "Category") return text;
     }
 
     return null;
