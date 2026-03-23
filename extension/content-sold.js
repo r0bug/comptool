@@ -1,6 +1,7 @@
 // CompTool Content Script — eBay sold search results (public search pages)
 // Detects sold items on regular eBay search pages (LH_Sold=1 / LH_Complete=1)
 // and auto-imports them.
+// eBay 2026 uses .s-card (not .s-item) with .s-card__link for links
 
 (function () {
   "use strict";
@@ -8,7 +9,6 @@
   const BUTTON_ID = "comptool-sold-save-btn";
   const STATUS_ID = "comptool-sold-status";
 
-  // Only activate if this is a sold/completed items search
   function isSoldSearch() {
     const url = new URL(window.location.href);
     return url.searchParams.get("LH_Sold") === "1" ||
@@ -18,26 +18,28 @@
 
   function scrapeResults() {
     const items = [];
-    const listings = document.querySelectorAll(".s-item");
+    // eBay 2026: listings are <li class="s-card"> inside .srp-results
+    // Fallback to .s-item for older layouts
+    const listings = document.querySelectorAll(".srp-results li.s-card, .srp-results .s-item");
 
     listings.forEach((el) => {
       try {
-        const titleEl = el.querySelector(".s-item__title");
-        if (!titleEl || titleEl.textContent?.includes("Shop on eBay")) return;
+        // Title — try multiple selectors
+        const titleEl = el.querySelector('[class*="title"], [role="heading"], .s-item__title');
+        if (!titleEl) return;
+        const title = titleEl.textContent?.trim() || "";
+        if (!title || title.length < 3 || title.includes("Shop on eBay")) return;
 
-        // Item ID from link
-        const linkEl = el.querySelector(".s-item__link");
+        // Link + item ID
+        const linkEl = el.querySelector('a[href*="/itm/"]');
         const itemUrl = linkEl?.href || "";
         const idMatch = itemUrl.match(/\/itm\/(\d+)/);
         const ebayItemId = idMatch
           ? idMatch[1]
           : `pub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-        const title = titleEl?.textContent?.trim() || "";
-        if (!title || title.length < 3) return;
-
-        // Price — sold items show in green with strikethrough original
-        const priceEl = el.querySelector(".s-item__price");
+        // Price
+        const priceEl = el.querySelector('[class*="price"]');
         let soldPrice = 0;
         if (priceEl) {
           const match = priceEl.textContent.match(/\$?([\d,]+\.?\d*)/);
@@ -45,8 +47,8 @@
         }
         if (soldPrice === 0) return;
 
-        // Shipping
-        const shipEl = el.querySelector(".s-item__shipping, .s-item__freeXDays");
+        // Shipping — look for delivery/shipping text
+        const shipEl = el.querySelector('[class*="shipping"], [class*="delivery"], [class*="freeXDays"], .s-item__shipping');
         let shippingPrice = null;
         if (shipEl) {
           const text = shipEl.textContent || "";
@@ -59,11 +61,11 @@
         }
 
         // Condition
-        const condEl = el.querySelector(".SECONDARY_INFO");
+        const condEl = el.querySelector('.SECONDARY_INFO, [class*="condition"], [class*="subtitle"]');
         const condition = condEl?.textContent?.trim() || null;
 
         // Seller
-        const sellerEl = el.querySelector(".s-item__seller-info-text");
+        const sellerEl = el.querySelector('[class*="seller"], .s-item__seller-info-text');
         let seller = null;
         let sellerFeedback = null;
         if (sellerEl) {
@@ -75,7 +77,7 @@
         }
 
         // Listing type / bids
-        const bidEl = el.querySelector(".s-item__bids");
+        const bidEl = el.querySelector('[class*="bids"], .s-item__bids');
         let listingType = "Fixed price";
         let bidCount = null;
         if (bidEl) {
@@ -85,18 +87,16 @@
         }
 
         // Image
-        const imgEl = el.querySelector(".s-item__image-img");
+        const imgEl = el.querySelector("img");
         const imageUrl = imgEl?.src || null;
 
-        // Sold date
-        const dateEl = el.querySelector(".s-item__caption--signal, .POSITIVE");
+        // Sold date — look for "Sold [date]" text anywhere in the card
         let soldDate = new Date().toISOString();
-        if (dateEl) {
-          const dateMatch = dateEl.textContent?.match(/Sold\s+(.+)/i);
-          if (dateMatch) {
-            const parsed = new Date(dateMatch[1]);
-            if (!isNaN(parsed.getTime())) soldDate = parsed.toISOString();
-          }
+        const allText = el.textContent || "";
+        const dateMatch = allText.match(/Sold\s+(\w+\s+\d+,?\s*\d{4})/i);
+        if (dateMatch) {
+          const parsed = new Date(dateMatch[1]);
+          if (!isNaN(parsed.getTime())) soldDate = parsed.toISOString();
         }
 
         const totalPrice = shippingPrice !== null ? soldPrice + shippingPrice : soldPrice;
@@ -212,7 +212,7 @@
   });
 
   function hashResults() {
-    const items = document.querySelectorAll(".s-item");
+    const items = document.querySelectorAll(".srp-results li.s-card, .srp-results .s-item");
     if (items.length === 0) return "";
     const first = items[0]?.textContent?.trim().slice(0, 80) || "";
     const last = items[items.length - 1]?.textContent?.trim().slice(0, 80) || "";
