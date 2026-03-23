@@ -29,17 +29,35 @@
   }
 
   function getPageCategory() {
-    // Try breadcrumbs
-    const crumbs = document.querySelectorAll('.seo-breadcrumb-text, [class*="breadcrumb"] a, [class*="breadcrumb"] span');
-    if (crumbs.length > 1) {
-      // Last non-empty breadcrumb that isn't "eBay" or "All"
-      const parts = Array.from(crumbs).map((c) => c.textContent?.trim()).filter((t) => t && t !== "eBay" && t !== "All");
+    const junk = ["eBay", "All", "More", "See All", "Back", "Shop by Category", ""];
+
+    // Try breadcrumb links (most reliable — actual category path)
+    const crumbLinks = document.querySelectorAll('.seo-breadcrumb-text a, [class*="breadcrumb"] a');
+    if (crumbLinks.length > 0) {
+      const parts = Array.from(crumbLinks)
+        .map((a) => a.textContent?.trim())
+        .filter((t) => t && !junk.includes(t) && t.length > 1 && t.length < 60);
       if (parts.length > 0) return parts[parts.length - 1];
     }
-    // Try the category sidebar header
-    const catHeader = document.querySelector('.x-refine__left__nav .x-refine__left__nav--heading, [class*="category"] [class*="heading"]');
-    if (catHeader) return catHeader.textContent?.trim() || null;
-    // URL _sacat param tells us category ID but not name
+
+    // Try the selected/active category in the sidebar filter
+    const activeCategory = document.querySelector(
+      '.x-refine__left__nav [class*="selected"] a, ' +
+      '.x-refine__left__nav .x-refine__multi-select--active, ' +
+      '[class*="category"] [aria-current="page"]'
+    );
+    if (activeCategory) {
+      const text = activeCategory.textContent?.trim().replace(/\(\d[\d,]*\)$/, "").trim();
+      if (text && !junk.includes(text)) return text;
+    }
+
+    // Try the category heading in sidebar
+    const catHeading = document.querySelector('.x-refine__left__nav h2, [class*="category"] [class*="heading"]');
+    if (catHeading) {
+      const text = catHeading.textContent?.trim();
+      if (text && !junk.includes(text) && text !== "Category") return text;
+    }
+
     return null;
   }
 
@@ -121,11 +139,14 @@
         const imgEl = el.querySelector("img");
         const imageUrl = imgEl?.src || null;
 
-        // Category — from breadcrumb or per-item category link, or page-level breadcrumb
+        // Category — per-item category link if present
         let category = null;
-        const itemCatEl = el.querySelector('[class*="category"], [class*="breadcrumb"]');
+        const itemCatEl = el.querySelector('[class*="category"] a, [class*="breadcrumb"] a');
         if (itemCatEl) {
-          category = itemCatEl.textContent?.trim() || null;
+          const catText = itemCatEl.textContent?.trim();
+          if (catText && catText !== "More" && catText.length > 1 && catText.length < 60) {
+            category = catText;
+          }
         }
 
         // Watchers
