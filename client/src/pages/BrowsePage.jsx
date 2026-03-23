@@ -189,11 +189,13 @@ export default function BrowsePage() {
             <FilterGroup label="Condition">
               <select value={f.condition} onChange={(e) => setF({ ...f, condition: e.target.value })} style={input}>
                 <option value="">Any</option>
-                <option value="new">New</option>
+                <option value="Brand New">Brand New</option>
+                <option value="New (Other)">New (Other)</option>
+                <option value="Open Box">Open Box</option>
                 <option value="Pre-Owned">Pre-Owned</option>
-                <option value="used">Used</option>
-                <option value="refurbished">Refurbished</option>
-                <option value="parts">For Parts</option>
+                <option value="Parts Only">Parts Only</option>
+                <option value="Remanufactured">Remanufactured</option>
+                <option value="Refurbished">Refurbished</option>
               </select>
             </FilterGroup>
             <FilterGroup label="Listing Type">
