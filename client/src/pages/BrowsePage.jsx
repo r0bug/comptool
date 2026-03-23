@@ -4,6 +4,8 @@ import { apiGet } from "../api";
 import CompTable from "../components/CompTable";
 import CompTiles from "../components/CompTiles";
 import StatsBar from "../components/StatsBar";
+import FacetCounts from "../components/FacetCounts";
+import SearchBuilder, { buildSearchParams, parseSearchParams } from "../components/SearchBuilder";
 
 const PAGE_SIZES = [25, 50, 100, 200];
 
@@ -12,13 +14,14 @@ export default function BrowsePage() {
   const [comps, setComps] = useState([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState(null);
+  const [facets, setFacets] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState(localStorage.getItem("comptool_view") || "tiles");
   const [tileSize, setTileSize] = useState(parseInt(localStorage.getItem("comptool_tile_size") || "220"));
-  const [showFilters, setShowFilters] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(window.innerWidth > 900);
 
-  // Read from URL
+  // URL params
   const keyword = searchParams.get("q") || "";
   const exclude = searchParams.get("not") || "";
   const minPrice = searchParams.get("min") || "";
@@ -35,15 +38,21 @@ export default function BrowsePage() {
   const pageSize = parseInt(searchParams.get("size") || "50");
   const page = parseInt(searchParams.get("page") || "1");
 
-  // Form state
-  const [f, setF] = useState({
-    keyword, exclude, minPrice: minPrice, maxPrice: maxPrice,
-    condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly,
-  });
+  // Search builder rows
+  const [searchRows, setSearchRows] = useState(() => parseSearchParams(keyword, exclude));
+
+  // Price form
+  const [fMin, setFMin] = useState(minPrice);
+  const [fMax, setFMax] = useState(maxPrice);
+  const [fSeller, setFSeller] = useState(seller);
+  const [fDateFrom, setFDateFrom] = useState(dateFrom);
+  const [fDateTo, setFDateTo] = useState(dateTo);
 
   useEffect(() => {
-    setF({ keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage });
-  }, [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly]);
+    setSearchRows(parseSearchParams(keyword, exclude));
+    setFMin(minPrice); setFMax(maxPrice); setFSeller(seller);
+    setFDateFrom(dateFrom); setFDateTo(dateTo);
+  }, [keyword, exclude, minPrice, maxPrice, seller, dateFrom, dateTo]);
 
   const fetchComps = useCallback(async () => {
     setLoading(true);
@@ -66,16 +75,16 @@ export default function BrowsePage() {
       p.set("limit", pageSize);
       p.set("offset", (page - 1) * pageSize);
 
-      const result = await apiGet(`/comps?${p}`);
+      const [result, statsData, facetData] = await Promise.all([
+        apiGet(`/comps?${p}`),
+        keyword ? apiGet(`/comps/stats?keyword=${encodeURIComponent(keyword)}`) : Promise.resolve(null),
+        apiGet(`/comps/facets?${keyword ? `keyword=${encodeURIComponent(keyword)}` : ""}${exclude ? `&exclude=${encodeURIComponent(exclude)}` : ""}`),
+      ]);
+
       setComps(result.comps);
       setTotal(result.total);
-
-      if (keyword) {
-        const s = await apiGet(`/comps/stats?keyword=${encodeURIComponent(keyword)}`);
-        setStats(s);
-      } else {
-        setStats(null);
-      }
+      setStats(statsData);
+      setFacets(facetData);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -85,37 +94,35 @@ export default function BrowsePage() {
 
   useEffect(() => { fetchComps(); }, [fetchComps]);
 
-  function applyFilters(overrides = {}) {
+  function applyAll(overrides = {}) {
+    const { keyword: kw, exclude: ex } = buildSearchParams(searchRows);
     const params = {};
-    const merged = { ...f, ...overrides };
-    if (merged.keyword?.trim()) params.q = merged.keyword.trim();
-    if (merged.exclude?.trim()) params.not = merged.exclude.trim();
+    const merged = { keyword: kw, exclude: ex, minPrice: fMin, maxPrice: fMax, condition, listingType, seller: fSeller, dateFrom: fDateFrom, dateTo: fDateTo, hasImage, richOnly, ...overrides };
+    if (merged.keyword) params.q = merged.keyword;
+    if (merged.exclude) params.not = merged.exclude;
     if (merged.minPrice) params.min = merged.minPrice;
     if (merged.maxPrice) params.max = merged.maxPrice;
     if (merged.condition) params.cond = merged.condition;
     if (merged.listingType) params.type = merged.listingType;
-    if (merged.seller?.trim()) params.seller = merged.seller.trim();
+    if (merged.seller) params.seller = merged.seller;
     if (merged.dateFrom) params.from = merged.dateFrom;
     if (merged.dateTo) params.to = merged.dateTo;
     if (merged.hasImage) params.img = merged.hasImage;
     if (merged.richOnly) params.rich = merged.richOnly;
-    params.sort = sortBy;
-    params.dir = sortDir;
-    params.size = String(pageSize);
+    params.sort = sortBy; params.dir = sortDir; params.size = String(pageSize);
     setSearchParams(params);
   }
 
-  function handleSearch(e) {
-    e.preventDefault();
-    applyFilters();
+  function handleSearch(e) { e.preventDefault(); applyAll(); }
+
+  function handleFacetApply(field, value) {
+    applyAll({ [field]: value });
   }
 
   function handleSort(col, dir) {
-    const params = Object.fromEntries(searchParams);
-    params.sort = col;
-    params.dir = dir;
-    params.page = "1";
-    setSearchParams(params);
+    const p = Object.fromEntries(searchParams);
+    p.sort = col; p.dir = dir; p.page = "1";
+    setSearchParams(p);
   }
 
   function handleSortSelect(e) {
@@ -124,221 +131,152 @@ export default function BrowsePage() {
   }
 
   function handlePageChange(newPage) {
-    const params = Object.fromEntries(searchParams);
-    params.page = String(newPage);
-    setSearchParams(params);
-  }
-
-  function handlePageSizeChange(newSize) {
-    const params = Object.fromEntries(searchParams);
-    params.size = String(newSize);
-    params.page = "1";
-    setSearchParams(params);
+    const p = Object.fromEntries(searchParams);
+    p.page = String(newPage);
+    setSearchParams(p);
   }
 
   function clearAll() {
-    setF({ keyword: "", exclude: "", minPrice: "", maxPrice: "", condition: "", listingType: "", seller: "", dateFrom: "", dateTo: "", hasImage: "", richOnly: "" });
+    setSearchRows([{ operator: "AND", term: "" }]);
+    setFMin(""); setFMax(""); setFSeller(""); setFDateFrom(""); setFDateTo("");
     setSearchParams({});
-  }
-
-  function handleTileSize(val) {
-    setTileSize(val);
-    localStorage.setItem("comptool_tile_size", val);
   }
 
   const totalPages = Math.ceil(total / pageSize);
   const hasFilters = keyword || exclude || minPrice || maxPrice || condition || listingType || seller || dateFrom || dateTo || hasImage || richOnly;
-  const activeFilterCount = [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly].filter(Boolean).length;
+  const filterCount = [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly].filter(Boolean).length;
 
   return (
-    <div>
-      {/* Search bar */}
-      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <input
-          type="text"
-          placeholder="Search comps..."
-          value={f.keyword}
-          onChange={(e) => setF({ ...f, keyword: e.target.value })}
-          style={{ ...input, flex: 1 }}
-          autoFocus
-        />
-        <input
-          type="text"
-          placeholder="Exclude terms..."
-          value={f.exclude}
-          onChange={(e) => setF({ ...f, exclude: e.target.value })}
-          style={{ ...input, width: 160 }}
-          title="Comma or space separated terms to exclude"
-        />
-        <button type="submit" style={btnPrimary}>Search</button>
-        <button type="button" onClick={() => setShowFilters(!showFilters)} style={{ ...btnGhost, position: "relative" }}>
-          Filters
-          {activeFilterCount > 2 && <span style={badge}>{activeFilterCount - (keyword ? 1 : 0) - (exclude ? 1 : 0)}</span>}
-        </button>
-        {hasFilters && <button type="button" onClick={clearAll} style={btnGhost}>Clear</button>}
-      </form>
-
-      {/* Advanced filters */}
-      {showFilters && (
-        <div style={filterPanel}>
-          <div style={filterGrid}>
-            <FilterGroup label="Price Range">
-              <div style={{ display: "flex", gap: 6 }}>
-                <input type="number" placeholder="Min $" value={f.minPrice} onChange={(e) => setF({ ...f, minPrice: e.target.value })} style={{ ...input, width: 80 }} step="0.01" min="0" />
-                <span style={{ color: "#555", lineHeight: "34px" }}>—</span>
-                <input type="number" placeholder="Max $" value={f.maxPrice} onChange={(e) => setF({ ...f, maxPrice: e.target.value })} style={{ ...input, width: 80 }} step="0.01" min="0" />
-              </div>
-            </FilterGroup>
-            <FilterGroup label="Condition">
-              <select value={f.condition} onChange={(e) => setF({ ...f, condition: e.target.value })} style={input}>
-                <option value="">Any</option>
-                <option value="Brand New">Brand New</option>
-                <option value="New (Other)">New (Other)</option>
-                <option value="Open Box">Open Box</option>
-                <option value="Pre-Owned">Pre-Owned</option>
-                <option value="Parts Only">Parts Only</option>
-                <option value="Remanufactured">Remanufactured</option>
-                <option value="Refurbished">Refurbished</option>
-              </select>
-            </FilterGroup>
-            <FilterGroup label="Listing Type">
-              <select value={f.listingType} onChange={(e) => setF({ ...f, listingType: e.target.value })} style={input}>
-                <option value="">Any</option>
-                <option value="Fixed price">Buy It Now</option>
-                <option value="Auction">Auction</option>
-              </select>
-            </FilterGroup>
-            <FilterGroup label="Seller">
-              <input type="text" placeholder="Seller name..." value={f.seller} onChange={(e) => setF({ ...f, seller: e.target.value })} style={input} />
-            </FilterGroup>
-            <FilterGroup label="Sold After">
-              <input type="date" value={f.dateFrom} onChange={(e) => setF({ ...f, dateFrom: e.target.value })} style={input} />
-            </FilterGroup>
-            <FilterGroup label="Sold Before">
-              <input type="date" value={f.dateTo} onChange={(e) => setF({ ...f, dateTo: e.target.value })} style={input} />
-            </FilterGroup>
-            <FilterGroup label="Images">
-              <select value={f.hasImage} onChange={(e) => setF({ ...f, hasImage: e.target.value })} style={input}>
-                <option value="">Any</option>
-                <option value="true">Has Image</option>
-              </select>
-            </FilterGroup>
-            <FilterGroup label="Data Source">
-              <select value={f.richOnly} onChange={(e) => setF({ ...f, richOnly: e.target.value })} style={input}>
-                <option value="">All Sources</option>
-                <option value="true">Detailed Only</option>
-              </select>
-            </FilterGroup>
+    <div style={{ display: "flex", gap: 16 }}>
+      {/* Sidebar with facets */}
+      {showSidebar && (
+        <div style={sidebar}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#aaa" }}>Filters</span>
+            <span style={{ fontSize: 11, color: "#555" }}>{facets?.total?.toLocaleString() || 0} total</span>
           </div>
-          <button onClick={() => applyFilters()} style={{ ...btnPrimary, marginTop: 8, fontSize: 12, padding: "6px 16px" }}>Apply Filters</button>
-        </div>
-      )}
 
-      {error && <p style={{ color: "#e94560" }}>{error}</p>}
-      {stats && <StatsBar stats={stats} />}
+          {/* Price */}
+          <div style={sideSection}>
+            <div style={sideLabel}>Price Range</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              <input type="number" placeholder="Min" value={fMin} onChange={(e) => setFMin(e.target.value)} style={{ ...sideInput, width: "50%" }} step="0.01" min="0" />
+              <input type="number" placeholder="Max" value={fMax} onChange={(e) => setFMax(e.target.value)} style={{ ...sideInput, width: "50%" }} step="0.01" min="0" />
+            </div>
+          </div>
 
-      {/* Active filter pills */}
-      {hasFilters && (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-          {keyword && <Pill label={`"${keyword}"`} onRemove={() => applyFilters({ keyword: "" })} />}
-          {exclude && <Pill label={`NOT: ${exclude}`} onRemove={() => applyFilters({ exclude: "" })} color="#c62828" />}
-          {minPrice && <Pill label={`Min $${minPrice}`} onRemove={() => applyFilters({ minPrice: "" })} />}
-          {maxPrice && <Pill label={`Max $${maxPrice}`} onRemove={() => applyFilters({ maxPrice: "" })} />}
-          {condition && <Pill label={condition} onRemove={() => applyFilters({ condition: "" })} />}
-          {listingType && <Pill label={listingType} onRemove={() => applyFilters({ listingType: "" })} />}
-          {seller && <Pill label={`Seller: ${seller}`} onRemove={() => applyFilters({ seller: "" })} />}
-          {dateFrom && <Pill label={`From: ${dateFrom}`} onRemove={() => applyFilters({ dateFrom: "" })} />}
-          {dateTo && <Pill label={`To: ${dateTo}`} onRemove={() => applyFilters({ dateTo: "" })} />}
-          {hasImage && <Pill label="Has Image" onRemove={() => applyFilters({ hasImage: "" })} />}
-          {richOnly && <Pill label="Detailed Only" onRemove={() => applyFilters({ richOnly: "" })} color="#1565c0" />}
-        </div>
-      )}
+          {/* Seller */}
+          <div style={sideSection}>
+            <div style={sideLabel}>Seller</div>
+            <input type="text" placeholder="Seller name..." value={fSeller} onChange={(e) => setFSeller(e.target.value)} style={sideInput} />
+          </div>
 
-      {/* Toolbar: count, sort, view, tile size */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ color: "#888", fontSize: 13 }}>
-          {loading ? "Loading..." : `${total.toLocaleString()} comp${total !== 1 ? "s" : ""}`}
-          {keyword && ` matching "${keyword}"`}
-          {exclude && ` excluding "${exclude}"`}
-        </div>
+          {/* Date range */}
+          <div style={sideSection}>
+            <div style={sideLabel}>Date Range</div>
+            <input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} style={sideInput} />
+            <input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} style={{ ...sideInput, marginTop: 4 }} />
+          </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Sort */}
-          <select value={`${sortBy}:${sortDir}`} onChange={handleSortSelect} style={{ ...input, fontSize: 12, padding: "5px 8px" }}>
-            <option value="soldDate:desc">Newest First</option>
-            <option value="soldDate:asc">Oldest First</option>
-            <option value="soldPrice:desc">Price: High → Low</option>
-            <option value="soldPrice:asc">Price: Low → High</option>
-            <option value="totalPrice:desc">Total: High → Low</option>
-            <option value="totalPrice:asc">Total: Low → High</option>
-            <option value="title:asc">Title: A → Z</option>
-            <option value="title:desc">Title: Z → A</option>
-            <option value="createdAt:desc">Recently Added</option>
-          </select>
+          {/* Data quality */}
+          <div style={sideSection}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#aaa", cursor: "pointer" }}>
+              <input type="checkbox" checked={richOnly === "true"} onChange={() => applyAll({ richOnly: richOnly === "true" ? "" : "true" })} />
+              Detailed only
+            </label>
+          </div>
 
-          {/* Page size */}
-          <select value={pageSize} onChange={(e) => handlePageSizeChange(parseInt(e.target.value))} style={{ ...input, fontSize: 12, padding: "5px 8px", width: 70 }}>
-            {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <button onClick={() => applyAll()} style={sideApplyBtn}>Apply</button>
 
-          {/* Tile size slider (only in tile mode) */}
-          {viewMode === "tiles" && (
-            <input
-              type="range"
-              min="140"
-              max="400"
-              value={tileSize}
-              onChange={(e) => handleTileSize(parseInt(e.target.value))}
-              style={{ width: 80, accentColor: "#e94560" }}
-              title={`Tile size: ${tileSize}px`}
-            />
+          {/* Facet counts */}
+          {facets && (
+            <div style={{ marginTop: 16, borderTop: "1px solid #1a2744", paddingTop: 12 }}>
+              <FacetCounts facets={facets} activeFilters={{ condition, listingType, hasImage }} onApply={handleFacetApply} />
+            </div>
           )}
+        </div>
+      )}
 
-          {/* View toggle */}
-          <div style={{ display: "flex", gap: 2 }}>
-            <button onClick={() => { setViewMode("table"); localStorage.setItem("comptool_view", "table"); }}
-              style={{ ...viewBtn, ...(viewMode === "table" ? viewBtnActive : {}) }} title="Table">&#9776;</button>
-            <button onClick={() => { setViewMode("tiles"); localStorage.setItem("comptool_view", "tiles"); }}
-              style={{ ...viewBtn, ...(viewMode === "tiles" ? viewBtnActive : {}) }} title="Tiles">&#9638;</button>
+      {/* Main content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Search builder */}
+        <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "flex-start" }}>
+          <SearchBuilder value={searchRows} onChange={setSearchRows} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <button type="submit" style={btnPrimary}>Search</button>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button type="button" onClick={() => setShowSidebar(!showSidebar)} style={btnSmall} title="Toggle filters">
+                {showSidebar ? "Hide" : "Filters"}{filterCount > 0 ? ` (${filterCount})` : ""}
+              </button>
+              {hasFilters && <button type="button" onClick={clearAll} style={btnSmall}>Clear</button>}
+            </div>
+          </div>
+        </form>
+
+        {error && <p style={{ color: "#e94560" }}>{error}</p>}
+        {stats && <StatsBar stats={stats} />}
+
+        {/* Active filter pills */}
+        {hasFilters && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+            {condition && <Pill label={condition} onRemove={() => applyAll({ condition: "" })} />}
+            {listingType && <Pill label={listingType === "Fixed price" ? "BIN" : listingType} onRemove={() => applyAll({ listingType: "" })} />}
+            {minPrice && <Pill label={`Min $${minPrice}`} onRemove={() => { setFMin(""); applyAll({ minPrice: "" }); }} />}
+            {maxPrice && <Pill label={`Max $${maxPrice}`} onRemove={() => { setFMax(""); applyAll({ maxPrice: "" }); }} />}
+            {seller && <Pill label={`Seller: ${seller}`} onRemove={() => { setFSeller(""); applyAll({ seller: "" }); }} />}
+            {dateFrom && <Pill label={`From: ${dateFrom}`} onRemove={() => { setFDateFrom(""); applyAll({ dateFrom: "" }); }} />}
+            {dateTo && <Pill label={`To: ${dateTo}`} onRemove={() => { setFDateTo(""); applyAll({ dateTo: "" }); }} />}
+            {hasImage && <Pill label="Has Image" onRemove={() => applyAll({ hasImage: "" })} />}
+            {richOnly && <Pill label="Detailed" onRemove={() => applyAll({ richOnly: "" })} color="#1565c0" />}
+          </div>
+        )}
+
+        {/* Toolbar */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 6 }}>
+          <span style={{ color: "#888", fontSize: 13 }}>
+            {loading ? "Loading..." : `${total.toLocaleString()} results`}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <select value={`${sortBy}:${sortDir}`} onChange={handleSortSelect} style={toolSelect}>
+              <option value="soldDate:desc">Newest</option>
+              <option value="soldDate:asc">Oldest</option>
+              <option value="soldPrice:desc">Price High</option>
+              <option value="soldPrice:asc">Price Low</option>
+              <option value="totalPrice:desc">Total High</option>
+              <option value="totalPrice:asc">Total Low</option>
+              <option value="title:asc">Title A-Z</option>
+              <option value="createdAt:desc">Recently Added</option>
+            </select>
+            <select value={pageSize} onChange={(e) => { const p = Object.fromEntries(searchParams); p.size = e.target.value; p.page = "1"; setSearchParams(p); }} style={{ ...toolSelect, width: 60 }}>
+              {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            {viewMode === "tiles" && (
+              <input type="range" min="140" max="400" value={tileSize} onChange={(e) => { setTileSize(parseInt(e.target.value)); localStorage.setItem("comptool_tile_size", e.target.value); }} style={{ width: 70, accentColor: "#e94560" }} />
+            )}
+            <div style={{ display: "flex", gap: 2 }}>
+              <button onClick={() => { setViewMode("table"); localStorage.setItem("comptool_view", "table"); }} style={{ ...vBtn, ...(viewMode === "table" ? vBtnActive : {}) }}>&#9776;</button>
+              <button onClick={() => { setViewMode("tiles"); localStorage.setItem("comptool_view", "tiles"); }} style={{ ...vBtn, ...(viewMode === "tiles" ? vBtnActive : {}) }}>&#9638;</button>
+            </div>
           </div>
         </div>
+
+        {/* Results */}
+        {viewMode === "tiles" ? <CompTiles comps={comps} tileSize={tileSize} /> : <CompTable comps={comps} onSort={handleSort} />}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={pagination}>
+            <button onClick={() => handlePageChange(1)} disabled={page <= 1} style={pageBtn}>First</button>
+            <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1} style={pageBtn}>Prev</button>
+            {genPages(page, totalPages).map((p, i) =>
+              p === "..." ? <span key={`d${i}`} style={{ color: "#555" }}>...</span> :
+              <button key={p} onClick={() => handlePageChange(p)} style={{ ...pageBtn, ...(p === page ? { borderColor: "#e94560", color: "#e94560" } : {}) }}>{p}</button>
+            )}
+            <button onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages} style={pageBtn}>Next</button>
+            <button onClick={() => handlePageChange(totalPages)} disabled={page >= totalPages} style={pageBtn}>Last</button>
+          </div>
+        )}
       </div>
-
-      {/* Results */}
-      {viewMode === "tiles" ? (
-        <CompTiles comps={comps} tileSize={tileSize} />
-      ) : (
-        <CompTable comps={comps} onSort={handleSort} />
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div style={pagination}>
-          <button onClick={() => handlePageChange(1)} disabled={page <= 1} style={pageBtn}>First</button>
-          <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1} style={pageBtn}>Prev</button>
-
-          {generatePageNumbers(page, totalPages).map((p, i) =>
-            p === "..." ? (
-              <span key={`dot-${i}`} style={{ color: "#555" }}>...</span>
-            ) : (
-              <button key={p} onClick={() => handlePageChange(p)}
-                style={{ ...pageBtn, ...(p === page ? { borderColor: "#e94560", color: "#e94560" } : {}) }}>{p}</button>
-            )
-          )}
-
-          <button onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages} style={pageBtn}>Next</button>
-          <button onClick={() => handlePageChange(totalPages)} disabled={page >= totalPages} style={pageBtn}>Last</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FilterGroup({ label, children }) {
-  return (
-    <div>
-      <div style={{ fontSize: 11, color: "#666", marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</div>
-      {children}
     </div>
   );
 }
@@ -352,25 +290,25 @@ function Pill({ label, onRemove, color }) {
   );
 }
 
-function generatePageNumbers(current, total) {
+function genPages(cur, total) {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages = [];
-  pages.push(1);
-  if (current > 3) pages.push("...");
-  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
-  if (current < total - 2) pages.push("...");
-  pages.push(total);
-  return pages;
+  const p = [1];
+  if (cur > 3) p.push("...");
+  for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++) p.push(i);
+  if (cur < total - 2) p.push("...");
+  p.push(total);
+  return p;
 }
 
-// Styles
-const input = { padding: "7px 10px", background: "#16213e", border: "1px solid #0f3460", borderRadius: 5, color: "#eee", fontSize: 13, outline: "none" };
-const btnPrimary = { padding: "8px 20px", background: "#e94560", color: "white", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 600, fontSize: 13 };
-const btnGhost = { padding: "8px 14px", background: "transparent", color: "#888", border: "1px solid #333", borderRadius: 5, cursor: "pointer", fontSize: 13 };
-const badge = { position: "absolute", top: -6, right: -6, background: "#e94560", color: "white", borderRadius: "50%", width: 18, height: 18, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center" };
-const filterPanel = { background: "#111827", border: "1px solid #0f3460", borderRadius: 8, padding: "14px 16px", marginBottom: 12 };
-const filterGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: "10px" };
-const viewBtn = { padding: "5px 9px", background: "#16213e", color: "#555", border: "1px solid #0f3460", borderRadius: 4, cursor: "pointer", fontSize: 15, lineHeight: 1 };
-const viewBtnActive = { color: "#e94560", borderColor: "#e94560" };
+const sidebar = { width: 220, flexShrink: 0, background: "#111827", border: "1px solid #0f3460", borderRadius: 8, padding: 14, alignSelf: "flex-start", position: "sticky", top: 16 };
+const sideSection = { marginBottom: 12 };
+const sideLabel = { fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 };
+const sideInput = { width: "100%", padding: "6px 8px", background: "#16213e", border: "1px solid #0f3460", borderRadius: 4, color: "#eee", fontSize: 12, outline: "none", boxSizing: "border-box" };
+const sideApplyBtn = { width: "100%", padding: "7px", background: "#e94560", color: "white", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 600, fontSize: 12 };
+const btnPrimary = { padding: "8px 20px", background: "#e94560", color: "white", border: "none", borderRadius: 5, cursor: "pointer", fontWeight: 600, fontSize: 13, whiteSpace: "nowrap" };
+const btnSmall = { padding: "4px 10px", background: "transparent", color: "#888", border: "1px solid #333", borderRadius: 4, cursor: "pointer", fontSize: 11, whiteSpace: "nowrap" };
+const toolSelect = { padding: "5px 8px", background: "#16213e", border: "1px solid #0f3460", borderRadius: 4, color: "#eee", fontSize: 12, outline: "none" };
+const vBtn = { padding: "5px 9px", background: "#16213e", color: "#555", border: "1px solid #0f3460", borderRadius: 4, cursor: "pointer", fontSize: 15, lineHeight: 1 };
+const vBtnActive = { color: "#e94560", borderColor: "#e94560" };
 const pagination = { display: "flex", gap: 6, alignItems: "center", justifyContent: "center", marginTop: 16, paddingTop: 16, borderTop: "1px solid #222", flexWrap: "wrap" };
 const pageBtn = { padding: "5px 12px", background: "#16213e", color: "#aaa", border: "1px solid #0f3460", borderRadius: 4, cursor: "pointer", fontSize: 12 };

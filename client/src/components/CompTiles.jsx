@@ -1,8 +1,10 @@
 import { useState } from "react";
 import ImageLightbox from "./ImageLightbox";
+import CompContextMenu from "./CompContextMenu";
 
 export default function CompTiles({ comps, tileSize = 220 }) {
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [ctxMenu, setCtxMenu] = useState(null);
 
   if (!comps || comps.length === 0) {
     return <p style={{ color: "#666" }}>No results</p>;
@@ -13,127 +15,92 @@ export default function CompTiles({ comps, tileSize = 220 }) {
     return comp.imageUrl || null;
   }
 
+  function handleContextMenu(e, comp) {
+    e.preventDefault();
+    setCtxMenu({ comp, x: e.clientX, y: e.clientY });
+  }
+
   return (
     <>
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      )}
-      <div style={{ ...grid, gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` }}>
-        {comps.map((comp, i) => (
-          <Tile
-            key={comp.id || comp.ebayItemId || i}
-            comp={comp}
-            imgSrc={getImgSrc(comp)}
-            onImageClick={() => {
-              const src = getImgSrc(comp);
-              if (src) setLightboxSrc(src);
-            }}
-          />
-        ))}
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+      {ctxMenu && <CompContextMenu comp={ctxMenu.comp} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />}
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))`, gap: 10 }}>
+        {comps.map((comp, i) => {
+          const src = getImgSrc(comp);
+          return (
+            <Tile
+              key={comp.id || comp.ebayItemId || i}
+              comp={comp}
+              imgSrc={src}
+              onImageClick={() => src && setLightboxSrc(src)}
+              onContextMenu={(e) => handleContextMenu(e, comp)}
+              tileSize={tileSize}
+            />
+          );
+        })}
       </div>
     </>
   );
 }
 
-function Tile({ comp, imgSrc, onImageClick }) {
+function Tile({ comp, imgSrc, onImageClick, onContextMenu, tileSize }) {
   const [hovered, setHovered] = useState(false);
+  const showDetails = tileSize >= 180;
 
   return (
     <div
       style={tile}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onContextMenu={onContextMenu}
     >
+      {/* Image — always visible, click opens lightbox */}
       <div style={imgContainer} onClick={onImageClick}>
         {imgSrc ? (
           <img src={imgSrc} alt={comp.title} style={imgStyle} loading="lazy" />
         ) : (
           <div style={noImg}>No Image</div>
         )}
-        <div style={{ ...priceTag, background: comp.listingType === "Auction" ? "#ff9800" : "#4caf50" }}>
+        {/* Price badge */}
+        <div style={{ ...priceBadge, background: comp.listingType === "Auction" ? "#ff9800" : "#4caf50" }}>
           ${comp.soldPrice?.toFixed(2)}
         </div>
+        {/* Condition badge */}
+        {comp.condition && (
+          <div style={condBadge}>{comp.condition}</div>
+        )}
       </div>
 
-      <div style={titleBar}>
+      {/* Info bar — always visible */}
+      <div style={infoBar}>
         <div style={titleText}>{comp.title}</div>
-      </div>
-
-      {/* Hover overlay with details */}
-      {hovered && (
-        <div style={hoverOverlay}>
-          <div style={overlayTitle}>{comp.title}</div>
-          <div style={overlayRow}>
-            <span>Sold: <strong>${comp.soldPrice?.toFixed(2)}</strong></span>
+        {hovered && showDetails && (
+          <div style={detailsRow}>
             {comp.shippingPrice != null && (
-              <span>Ship: {comp.shippingPrice === 0 ? "Free" : `$${comp.shippingPrice.toFixed(2)}`}</span>
+              <span style={detailTag}>{comp.shippingPrice === 0 ? "Free ship" : `+$${comp.shippingPrice.toFixed(2)}`}</span>
             )}
+            {comp.listingType && <span style={detailTag}>{comp.listingType === "Auction" ? `Auction${comp.bidCount ? ` (${comp.bidCount})` : ""}` : "BIN"}</span>}
+            {comp.soldDate && <span style={detailTag}>{fmtDate(comp.soldDate)}</span>}
+            {comp.seller && <span style={detailTag}>{comp.seller}</span>}
           </div>
-          {comp.totalPrice && comp.totalPrice !== comp.soldPrice && (
-            <div style={overlayRow}>
-              <span>Total: <strong style={{ color: "#4caf50" }}>${comp.totalPrice.toFixed(2)}</strong></span>
-            </div>
-          )}
-          <div style={overlayRow}>
-            {comp.listingType && <span>{comp.listingType}</span>}
-            {comp.bidCount ? <span>{comp.bidCount} bids</span> : null}
-            {comp.soldDate && <span>{formatDate(comp.soldDate)}</span>}
-          </div>
-          {comp.condition && <div style={overlayRow}><span>{comp.condition}</span></div>}
-          <div style={overlayActions}>
-            {comp.itemUrl && (
-              <a href={comp.itemUrl} target="_blank" rel="noreferrer" style={actionLink}>
-                View on eBay
-              </a>
-            )}
-            {comp.itemUrl && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigator.clipboard.writeText(comp.itemUrl);
-                }}
-                style={actionBtn}
-              >
-                Copy URL
-              </button>
-            )}
-            {comp.ebayItemId && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigator.clipboard.writeText(comp.ebayItemId);
-                }}
-                style={actionBtn}
-              >
-                Copy Item #
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+function fmtDate(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-  gap: "12px",
-};
-
 const tile = {
-  position: "relative",
   background: "#16213e",
   border: "1px solid #0f3460",
   borderRadius: 8,
   overflow: "hidden",
-  cursor: "default",
+  cursor: "context-menu",
+  transition: "border-color 0.15s",
 };
 
 const imgContainer = {
@@ -158,11 +125,11 @@ const noImg = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  color: "#444",
-  fontSize: 13,
+  color: "#333",
+  fontSize: 12,
 };
 
-const priceTag = {
+const priceBadge = {
   position: "absolute",
   bottom: 6,
   right: 6,
@@ -174,8 +141,19 @@ const priceTag = {
   boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
 };
 
-const titleBar = {
-  padding: "8px 10px",
+const condBadge = {
+  position: "absolute",
+  top: 6,
+  left: 6,
+  background: "rgba(0,0,0,0.7)",
+  color: "#ccc",
+  padding: "2px 6px",
+  borderRadius: 3,
+  fontSize: 10,
+};
+
+const infoBar = {
+  padding: "6px 8px",
 };
 
 const titleText = {
@@ -188,56 +166,17 @@ const titleText = {
   WebkitBoxOrient: "vertical",
 };
 
-const hoverOverlay = {
-  position: "absolute",
-  inset: 0,
-  background: "rgba(10, 10, 30, 0.95)",
-  padding: "14px",
+const detailsRow = {
   display: "flex",
-  flexDirection: "column",
-  gap: 8,
-  zIndex: 10,
-  overflow: "auto",
-};
-
-const overlayTitle = {
-  fontSize: 13,
-  fontWeight: 600,
-  color: "#eee",
-  lineHeight: 1.4,
-  marginBottom: 4,
-};
-
-const overlayRow = {
-  display: "flex",
-  gap: 12,
-  fontSize: 12,
-  color: "#aaa",
+  gap: 4,
   flexWrap: "wrap",
+  marginTop: 4,
 };
 
-const overlayActions = {
-  marginTop: "auto",
-  paddingTop: 8,
-  borderTop: "1px solid #333",
-  display: "flex",
-  gap: 8,
-  flexWrap: "wrap",
-};
-
-const actionLink = {
-  color: "#7ec8e3",
-  textDecoration: "none",
-  fontSize: 12,
-  fontWeight: 600,
-};
-
-const actionBtn = {
-  background: "rgba(255,255,255,0.08)",
-  border: "1px solid #444",
-  color: "#aaa",
-  padding: "3px 10px",
-  borderRadius: 4,
-  cursor: "pointer",
-  fontSize: 11,
+const detailTag = {
+  fontSize: 10,
+  color: "#888",
+  background: "#0f1a2e",
+  padding: "1px 5px",
+  borderRadius: 3,
 };

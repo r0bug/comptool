@@ -13,6 +13,52 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// Filter facet counts — shows impact of each filter option
+router.get("/facets", async (req, res) => {
+  try {
+    const prisma = require("../config/database");
+    const { keyword, exclude } = req.query;
+
+    // Build base where clause (just keyword/exclude, not other filters)
+    const andConditions = [];
+    if (keyword) {
+      keyword.split(/\s+/).filter(Boolean).forEach((term) => {
+        andConditions.push({ title: { contains: term, mode: "insensitive" } });
+      });
+    }
+    if (exclude) {
+      exclude.split(/[,\s]+/).filter(Boolean).forEach((term) => {
+        andConditions.push({ NOT: { title: { contains: term, mode: "insensitive" } } });
+      });
+    }
+    const baseWhere = andConditions.length > 0 ? { AND: andConditions } : {};
+
+    const [conditions, types, shipping, images, total] = await Promise.all([
+      prisma.soldComp.groupBy({ by: ["condition"], where: baseWhere, _count: true, orderBy: { _count: { condition: "desc" } }, take: 15 }),
+      prisma.soldComp.groupBy({ by: ["listingType"], where: baseWhere, _count: true, orderBy: { _count: { listingType: "desc" } }, take: 10 }),
+      prisma.soldComp.groupBy({
+        by: ["shippingPrice"],
+        where: { ...baseWhere, shippingPrice: 0 },
+        _count: true,
+      }).then((r) => r[0]?._count || 0),
+      prisma.soldComp.count({ where: { ...baseWhere, imageUrl: { not: null } } }),
+      prisma.soldComp.count({ where: baseWhere }),
+    ]);
+
+    const freeShipCount = typeof shipping === "number" ? shipping : 0;
+
+    res.json({
+      total,
+      conditions: conditions.filter((c) => c.condition).map((c) => ({ value: c.condition, count: c._count })),
+      listingTypes: types.filter((c) => c.listingType).map((c) => ({ value: c.listingType, count: c._count })),
+      freeShipping: freeShipCount,
+      withImages: images,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // List comps with filters
 router.get("/", async (req, res) => {
   try {
