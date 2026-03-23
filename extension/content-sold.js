@@ -28,8 +28,24 @@
     return false;
   }
 
+  function getPageCategory() {
+    // Try breadcrumbs
+    const crumbs = document.querySelectorAll('.seo-breadcrumb-text, [class*="breadcrumb"] a, [class*="breadcrumb"] span');
+    if (crumbs.length > 1) {
+      // Last non-empty breadcrumb that isn't "eBay" or "All"
+      const parts = Array.from(crumbs).map((c) => c.textContent?.trim()).filter((t) => t && t !== "eBay" && t !== "All");
+      if (parts.length > 0) return parts[parts.length - 1];
+    }
+    // Try the category sidebar header
+    const catHeader = document.querySelector('.x-refine__left__nav .x-refine__left__nav--heading, [class*="category"] [class*="heading"]');
+    if (catHeader) return catHeader.textContent?.trim() || null;
+    // URL _sacat param tells us category ID but not name
+    return null;
+  }
+
   function scrapeResults() {
     const items = [];
+    const pageCategory = getPageCategory();
     // eBay 2026: listings are <li class="s-card"> inside .srp-results
     // Fallback to .s-item for older layouts
     const listings = document.querySelectorAll(".srp-results li.s-card, .srp-results .s-item");
@@ -102,6 +118,13 @@
         const imgEl = el.querySelector("img");
         const imageUrl = imgEl?.src || null;
 
+        // Category — from breadcrumb or per-item category link, or page-level breadcrumb
+        let category = null;
+        const itemCatEl = el.querySelector('[class*="category"], [class*="breadcrumb"]');
+        if (itemCatEl) {
+          category = itemCatEl.textContent?.trim() || null;
+        }
+
         // Watchers
         const watchEl = el.querySelector('[class*="watcher"], [class*="watch"]');
         let watchers = null;
@@ -132,7 +155,7 @@
           shippingPrice,
           totalPrice,
           condition,
-          category,
+          category: category || pageCategory,
           listingType,
           bidCount,
           quantitySold: null,

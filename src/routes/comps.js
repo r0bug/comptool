@@ -33,9 +33,10 @@ router.get("/facets", async (req, res) => {
     }
     const baseWhere = andConditions.length > 0 ? { AND: andConditions } : {};
 
-    const [conditions, types, shipping, images, total] = await Promise.all([
+    const [conditions, types, categories, shipping, images, total] = await Promise.all([
       prisma.soldComp.groupBy({ by: ["condition"], where: baseWhere, _count: true, orderBy: { _count: { condition: "desc" } }, take: 15 }),
       prisma.soldComp.groupBy({ by: ["listingType"], where: baseWhere, _count: true, orderBy: { _count: { listingType: "desc" } }, take: 10 }),
+      prisma.soldComp.groupBy({ by: ["category"], where: baseWhere, _count: true, orderBy: { _count: { category: "desc" } }, take: 25 }),
       prisma.soldComp.groupBy({
         by: ["shippingPrice"],
         where: { ...baseWhere, shippingPrice: 0 },
@@ -49,6 +50,7 @@ router.get("/facets", async (req, res) => {
 
     res.json({
       total,
+      categories: categories.filter((c) => c.category).map((c) => ({ value: c.category, count: c._count })),
       conditions: conditions.filter((c) => c.condition).map((c) => ({ value: c.condition, count: c._count })),
       listingTypes: types.filter((c) => c.listingType).map((c) => ({ value: c.listingType, count: c._count })),
       freeShipping: freeShipCount,
@@ -62,13 +64,14 @@ router.get("/facets", async (req, res) => {
 // List comps with filters
 router.get("/", async (req, res) => {
   try {
-    const { keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly, limit, offset, sortBy, sortDir } = req.query;
+    const { keyword, exclude, minPrice, maxPrice, condition, category, listingType, seller, dateFrom, dateTo, hasImage, richOnly, limit, offset, sortBy, sortDir } = req.query;
     const result = await compStore.listComps({
       keyword,
       exclude,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
       condition,
+      category,
       listingType,
       seller,
       dateFrom,

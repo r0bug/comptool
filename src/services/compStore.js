@@ -185,6 +185,7 @@ async function listComps({
   minPrice,
   maxPrice,
   condition,
+  category,
   listingType,
   seller,
   dateFrom,
@@ -227,6 +228,11 @@ async function listComps({
   // Condition
   if (condition) {
     andConditions.push({ condition: { contains: condition, mode: "insensitive" } });
+  }
+
+  // Category
+  if (category) {
+    andConditions.push({ category: { contains: category, mode: "insensitive" } });
   }
 
   // Listing type

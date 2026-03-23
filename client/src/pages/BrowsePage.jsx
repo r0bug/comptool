@@ -27,6 +27,7 @@ export default function BrowsePage() {
   const minPrice = searchParams.get("min") || "";
   const maxPrice = searchParams.get("max") || "";
   const condition = searchParams.get("cond") || "";
+  const category = searchParams.get("cat") || "";
   const listingType = searchParams.get("type") || "";
   const seller = searchParams.get("seller") || "";
   const dateFrom = searchParams.get("from") || "";
@@ -64,6 +65,7 @@ export default function BrowsePage() {
       if (minPrice) p.set("minPrice", minPrice);
       if (maxPrice) p.set("maxPrice", maxPrice);
       if (condition) p.set("condition", condition);
+      if (category) p.set("category", category);
       if (listingType) p.set("listingType", listingType);
       if (seller) p.set("seller", seller);
       if (dateFrom) p.set("dateFrom", dateFrom);
@@ -90,19 +92,20 @@ export default function BrowsePage() {
     } finally {
       setLoading(false);
     }
-  }, [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly, sortBy, sortDir, pageSize, page]);
+  }, [keyword, exclude, minPrice, maxPrice, condition, category, listingType, seller, dateFrom, dateTo, hasImage, richOnly, sortBy, sortDir, pageSize, page]);
 
   useEffect(() => { fetchComps(); }, [fetchComps]);
 
   function applyAll(overrides = {}) {
     const { keyword: kw, exclude: ex } = buildSearchParams(searchRows);
     const params = {};
-    const merged = { keyword: kw, exclude: ex, minPrice: fMin, maxPrice: fMax, condition, listingType, seller: fSeller, dateFrom: fDateFrom, dateTo: fDateTo, hasImage, richOnly, ...overrides };
+    const merged = { keyword: kw, exclude: ex, minPrice: fMin, maxPrice: fMax, condition, category, listingType, seller: fSeller, dateFrom: fDateFrom, dateTo: fDateTo, hasImage, richOnly, ...overrides };
     if (merged.keyword) params.q = merged.keyword;
     if (merged.exclude) params.not = merged.exclude;
     if (merged.minPrice) params.min = merged.minPrice;
     if (merged.maxPrice) params.max = merged.maxPrice;
     if (merged.condition) params.cond = merged.condition;
+    if (merged.category) params.cat = merged.category;
     if (merged.listingType) params.type = merged.listingType;
     if (merged.seller) params.seller = merged.seller;
     if (merged.dateFrom) params.from = merged.dateFrom;
@@ -143,8 +146,8 @@ export default function BrowsePage() {
   }
 
   const totalPages = Math.ceil(total / pageSize);
-  const hasFilters = keyword || exclude || minPrice || maxPrice || condition || listingType || seller || dateFrom || dateTo || hasImage || richOnly;
-  const filterCount = [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly].filter(Boolean).length;
+  const hasFilters = keyword || exclude || minPrice || maxPrice || condition || category || listingType || seller || dateFrom || dateTo || hasImage || richOnly;
+  const filterCount = [keyword, exclude, minPrice, maxPrice, condition, category, listingType, seller, dateFrom, dateTo, hasImage, richOnly].filter(Boolean).length;
 
   return (
     <div style={{ display: "flex", gap: 16 }}>
@@ -191,7 +194,7 @@ export default function BrowsePage() {
           {/* Facet counts */}
           {facets && (
             <div style={{ marginTop: 16, borderTop: "1px solid #1a2744", paddingTop: 12 }}>
-              <FacetCounts facets={facets} activeFilters={{ condition, listingType, hasImage }} onApply={handleFacetApply} />
+              <FacetCounts facets={facets} activeFilters={{ condition, category, listingType, hasImage }} onApply={handleFacetApply} />
             </div>
           )}
         </div>
@@ -220,6 +223,7 @@ export default function BrowsePage() {
         {hasFilters && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
             {condition && <Pill label={condition} onRemove={() => applyAll({ condition: "" })} />}
+            {category && <Pill label={`Cat: ${category}`} onRemove={() => applyAll({ category: "" })} color="#2e7d32" />}
             {listingType && <Pill label={listingType === "Fixed price" ? "BIN" : listingType} onRemove={() => applyAll({ listingType: "" })} />}
             {minPrice && <Pill label={`Min $${minPrice}`} onRemove={() => { setFMin(""); applyAll({ minPrice: "" }); }} />}
             {maxPrice && <Pill label={`Max $${maxPrice}`} onRemove={() => { setFMax(""); applyAll({ maxPrice: "" }); }} />}

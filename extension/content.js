@@ -6,8 +6,23 @@
   const BUTTON_ID = "comptool-save-btn";
   const STATUS_ID = "comptool-status";
 
+  function getTeapreakCategory() {
+    // Terapeak shows category in the search panel or URL
+    const url = new URL(window.location.href);
+    const catId = url.searchParams.get("categoryId");
+    // Try to find category name on the page
+    const catEl = document.querySelector('[class*="category-name"], [class*="categoryName"], .search-input-panel [class*="category"]');
+    if (catEl) {
+      const text = catEl.textContent?.trim();
+      if (text && text !== "All Categories" && text !== "0") return text;
+    }
+    if (catId && catId !== "0") return `eBay Category ${catId}`;
+    return null;
+  }
+
   function scrapeResults() {
     const items = [];
+    const pageCategory = getTeapreakCategory();
     const rows = document.querySelectorAll(
       ".sold-result-table table tr:not(.research-table-header)"
     );
@@ -109,7 +124,7 @@
           shippingPrice,
           totalPrice,
           condition: null,
-          category: null,
+          category: pageCategory,
           listingType,
           bidCount,
           quantitySold,

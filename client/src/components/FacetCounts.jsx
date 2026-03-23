@@ -3,6 +3,21 @@ export default function FacetCounts({ facets, activeFilters, onApply }) {
 
   return (
     <div style={panel}>
+      {facets.categories?.length > 0 && (
+        <div style={section}>
+          <div style={sectionTitle}>Category</div>
+          {facets.categories.slice(0, 10).map((c) => (
+            <FacetRow
+              key={c.value}
+              label={c.value}
+              count={c.count}
+              active={activeFilters.category === c.value}
+              onClick={() => onApply("category", activeFilters.category === c.value ? "" : c.value)}
+            />
+          ))}
+        </div>
+      )}
+
       <div style={section}>
         <div style={sectionTitle}>Condition <span style={totalBadge}>{facets.conditions.reduce((a, c) => a + c.count, 0)}</span></div>
         {facets.conditions.slice(0, 8).map((c) => (
