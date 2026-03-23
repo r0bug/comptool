@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 340px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: #333; }
+    .header { background: #3665f3; color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+    .header h1 { font-size: 16px; font-weight: 600; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .status-dot.ok { background: #4caf50; }
+    .status-dot.err { background: #f44336; }
+    .status-dot.loading { background: #ff9800; }
+    .body { padding: 12px 16px; }
+    .conn { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 12px; color: #666; }
+    .searches { list-style: none; }
+    .searches li { padding: 8px 0; border-bottom: 1px solid #eee; }
+    .searches li:last-child { border-bottom: none; }
+    .search-keyword { font-weight: 600; color: #111; }
+    .search-meta { font-size: 11px; color: #888; margin-top: 2px; }
+    .empty { color: #999; font-style: italic; padding: 20px 0; text-align: center; }
+    .footer { padding: 8px 16px; border-top: 1px solid #eee; display: flex; gap: 12px; }
+    .footer a { color: #3665f3; text-decoration: none; font-size: 12px; }
+    .footer a:hover { text-decoration: underline; }
+    #updateBanner { display: none; padding: 8px 16px; background: #fff3cd; color: #856404; font-size: 12px; border-bottom: 1px solid #ffc107; }
+    #updateBanner a { color: #533f03; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>CompTool</h1>
+    <span id="statusDot" class="status-dot loading"></span>
+  </div>
+  <div id="updateBanner"></div>
+  <div class="body">
+    <div class="conn"><span id="connText">Connecting...</span></div>
+    <ul class="searches" id="searchList"></ul>
+  </div>
+  <div class="footer">
+    <a href="#" id="dashLink" target="_blank">Open Dashboard</a>
+    <a href="options.html" target="_blank">Settings</a>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

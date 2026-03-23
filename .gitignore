@@ -1,0 +1,13 @@
+node_modules/
+client/node_modules/
+client/dist/
+.env
+*.log
+.DS_Store
+.browser-data/
+.ebay-cookies.json
+data/images/
+comptool-export.json
+src/generated/
+public/
+*.tar.gz

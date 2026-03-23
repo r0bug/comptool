@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Tenant / Auth ───────────────────────────────────────
+
+model Client {
+  id                String    @id @default(uuid())
+  name              String
+  email             String    @unique
+  company           String?
+
+  // Billing (future)
+  planTier          String    @default("free")   // free, pro, enterprise
+  billingStatus     String    @default("active") // active, suspended, cancelled
+  stripeCustomerId  String?
+  usageLimitMonthly Int       @default(1000)
+
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  apiKeys           ApiKey[]
+
+  @@index([email])
+}
+
+model ApiKey {
+  id          Int       @id @default(autoincrement())
+  clientId    String
+  key         String    @unique
+  label       String    @default("Default")
+  isActive    Boolean   @default(true)
+  lastUsedAt  DateTime?
+  usageCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  machines    Machine[]
+
+  @@index([key])
+  @@index([clientId])
+}
+
+model Machine {
+  id           Int       @id @default(autoincrement())
+  apiKeyId     Int
+  machineId    String
+  browserInfo  String?
+  firstSeen    DateTime  @default(now())
+  lastSeen     DateTime  @updatedAt
+  requestCount Int       @default(0)
+
+  apiKey       ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@unique([apiKeyId, machineId])
+  @@index([apiKeyId])
+}
+
+// ─── Core Data ───────────────────────────────────────────
+
+model SoldComp {
+  id              Int       @id @default(autoincrement())
+
+  // Client/tenant
+  clientId        String    @default("default")
+
+  // eBay identifiers
+  ebayItemId      String
+  itemUrl         String?
+
+  // Core listing data
+  title           String
+  soldPrice       Float
+  shippingPrice   Float?
+  totalPrice      Float?
+
+  // Item details
+  condition       String?
+  category        String?
+  listingType     String?
+  bidCount        Int?
+
+  // Seller
+  seller          String?
+  sellerFeedback  Int?
+
+  // Media
+  imageUrl        String?
+  localImage      String?
+
+  // Dates
+  soldDate        DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  searches        SearchComp[]
+
+  @@unique([clientId, ebayItemId])
+  @@index([clientId])
+  @@index([title])
+  @@index([soldDate])
+  @@index([soldPrice])
+}
+
+model Search {
+  id              Int       @id @default(autoincrement())
+
+  clientId        String    @default("default")
+
+  keyword         String
+  filters         Json?
+
+  resultCount     Int       @default(0)
+
+  // Stats
+  avgPrice        Float?
+  medianPrice     Float?
+  minPrice        Float?
+  maxPrice        Float?
+
+  source          String    @default("seller_hub")
+  status          String    @default("pending")
+  errorMessage    String?
+  pagesScraped    Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  comps           SearchComp[]
+
+  @@index([clientId])
+  @@index([keyword])
+  @@index([createdAt])
+}
+
+model SearchComp {
+  searchId        Int
+  compId          Int
+
+  search          Search    @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  comp            SoldComp  @relation(fields: [compId], references: [id], onDelete: Cascade)
+
+  @@id([searchId, compId])
+}

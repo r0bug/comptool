@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CompTool Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 480px; margin: 40px auto; padding: 0 20px; color: #333; }
+    h1 { font-size: 20px; margin-bottom: 24px; }
+    label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; margin-top: 16px; }
+    input[type="text"], input[type="password"] {
+      width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;
+    }
+    .hint { font-size: 11px; color: #888; margin-top: 2px; }
+    .actions { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
+    button {
+      padding: 8px 20px; border: none; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn-save { background: #3665f3; color: white; }
+    .btn-save:hover { background: #2a4fcf; }
+    .btn-test { background: #eee; color: #333; }
+    .btn-test:hover { background: #ddd; }
+    #statusMsg { font-size: 13px; margin-left: 8px; }
+    .ok { color: #0a7c42; }
+    .err { color: #cc1100; }
+  </style>
+</head>
+<body>
+  <h1>CompTool Settings</h1>
+
+  <label for="apiUrl">API URL</label>
+  <input type="text" id="apiUrl" placeholder="https://listflow.robug.com">
+  <div class="hint">The base URL where CompTool backend is running</div>
+
+  <label for="apiKey">API Key</label>
+  <input type="password" id="apiKey" placeholder="ct_your-api-key">
+  <div class="hint">Get your key at <a href="https://listflow.robug.com/comp/register">listflow.robug.com/comp/register</a></div>
+
+  <label>Machine ID</label>
+  <input type="text" id="machineId" readonly style="background: #f5f5f5; color: #666; cursor: default;">
+  <div class="hint">Identifies this browser installation. <a href="#" id="resetMachineId">Reset</a></div>
+
+  <div class="actions">
+    <button class="btn-save" id="saveBtn">Save</button>
+    <button class="btn-test" id="testBtn">Test Connection</button>
+    <span id="statusMsg"></span>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
