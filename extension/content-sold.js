@@ -133,10 +133,6 @@
           if (wm) watchers = parseInt(wm[1]);
         }
 
-        // Category — try breadcrumb or category link
-        const catEl = el.querySelector('[class*="category"], [class*="breadcrumb"]');
-        const category = catEl?.textContent?.trim() || null;
-
         // Sold date — look for "Sold [date]" text anywhere in the card
         let soldDate = new Date().toISOString();
         const allText = el.textContent || "";
