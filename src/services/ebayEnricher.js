@@ -34,7 +34,7 @@ function sleep(ms) {
  */
 async function fetchFromListFlow(ebayItemId) {
   try {
-    const resp = await fetch(`${LISTFLOW_URL}/api/ebay/listing/${ebayItemId}`, {
+    const resp = await fetch(`${LISTFLOW_URL}/api/v1/ebay/listing/${ebayItemId}`, {
       signal: AbortSignal.timeout(15000),
     });
 
@@ -54,38 +54,34 @@ async function fetchFromListFlow(ebayItemId) {
 }
 
 /**
- * Parse ListFlow's response into update fields.
- * ListFlow's Browse API response includes various nested structures.
+ * Parse ListFlow's formatted response into update fields.
+ * ListFlow returns: { success: true, listing: { title, category, condition, seller, price, imageUrls, specifics, itemWebUrl } }
+ * Category uses "|" separator: "Collectibles|Transportation|Railroadiana & Trains|Hardware"
  */
-function parseResponse(data) {
+function parseResponse(apiResp) {
+  if (!apiResp?.success || !apiResp?.listing) return {};
+
+  const data = apiResp.listing;
   const updates = {};
 
-  // Category — could be in categoryPath, category, or nested
-  if (data.categoryPath) {
-    const parts = data.categoryPath.split("|").map((s) => s.trim());
-    updates.category = parts[parts.length - 1] || data.categoryPath;
-  } else if (data.category) {
-    updates.category = typeof data.category === "string" ? data.category : data.category.categoryName || data.category.categoryId;
+  // Category — convert "|" path to " > " for consistency with extension scraper
+  if (data.category) {
+    updates.category = data.category.split("|").map((s) => s.trim()).join(" > ");
   }
 
   // Condition
   if (data.condition) {
     updates.condition = data.condition;
-  } else if (data.conditionDescription) {
-    updates.condition = data.conditionDescription;
   }
 
   // Seller
-  if (data.seller?.username) {
-    updates.seller = data.seller.username;
-    if (data.seller.feedbackScore != null) updates.sellerFeedback = data.seller.feedbackScore;
+  if (data.seller) {
+    updates.seller = data.seller;
   }
 
-  // Image
-  if (data.image?.imageUrl) {
-    updates.imageUrl = data.image.imageUrl;
-  } else if (data.thumbnailImages?.[0]?.imageUrl) {
-    updates.imageUrl = data.thumbnailImages[0].imageUrl;
+  // Image (first from imageUrls array)
+  if (data.imageUrls?.length > 0) {
+    updates.imageUrl = data.imageUrls[0];
   }
 
   // URL
@@ -112,12 +108,18 @@ function parseResponse(data) {
 async function enrichComp(comp) {
   stats.processed++;
 
-  const data = await fetchFromListFlow(comp.ebayItemId);
+  const resp = await fetchFromListFlow(comp.ebayItemId);
 
-  if (data === null) { stats.notFound++; return; }
-  if (data === "rate_limited" || data === "timeout") { stats.failed++; return; }
+  if (resp === null) { stats.notFound++; return; }
+  if (resp === "rate_limited" || resp === "timeout") { stats.failed++; return; }
+  if (!resp?.success) {
+    stats.notFound++;
+    // Touch updatedAt so we don't re-process expired items
+    await prisma.soldComp.update({ where: { id: comp.id }, data: {} }).catch(() => {});
+    return;
+  }
 
-  const apiUpdates = parseResponse(data);
+  const apiUpdates = parseResponse(resp);
 
   // Only overwrite null fields
   const updates = {};
