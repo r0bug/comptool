@@ -1,8 +1,10 @@
 import { useState } from "react";
+import ImageLightbox from "./ImageLightbox";
 
 export default function CompTable({ comps, onSort }) {
   const [sortCol, setSortCol] = useState("soldPrice");
   const [sortDir, setSortDir] = useState("desc");
+  const [lightboxSrc, setLightboxSrc] = useState(null);
 
   function handleSort(col) {
     const newDir = sortCol === col && sortDir === "desc" ? "asc" : "desc";
@@ -13,6 +15,11 @@ export default function CompTable({ comps, onSort }) {
 
   if (!comps || comps.length === 0) {
     return <p style={{ color: "#666" }}>No results</p>;
+  }
+
+  function getImgSrc(comp) {
+    if (comp.localImage) return `/comp/images/${comp.localImage}`;
+    return comp.imageUrl || null;
   }
 
   const columns = [
@@ -28,68 +35,77 @@ export default function CompTable({ comps, onSort }) {
   ];
 
   return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                style={{
-                  padding: "8px 10px",
-                  textAlign: "left",
-                  borderBottom: "1px solid #333",
-                  color: "#aaa",
-                  cursor: col.sortable ? "pointer" : "default",
-                  whiteSpace: "nowrap",
-                  userSelect: "none",
-                }}
-              >
-                {col.label}
-                {col.sortable && sortCol === col.key && (sortDir === "asc" ? " ▲" : " ▼")}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {comps.map((comp, i) => (
-            <tr key={comp.id || comp.ebayItemId || i} style={{ borderBottom: "1px solid #222" }}>
-              <td style={cellStyle}>
-                {(comp.localImage || comp.imageUrl) && (
-                  <img
-                    src={comp.localImage ? `/comp/images/${comp.localImage}` : comp.imageUrl}
-                    alt=""
-                    style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4 }}
-                    loading="lazy"
-                  />
-                )}
-              </td>
-              <td style={{ ...cellStyle, maxWidth: "300px" }}>
-                {comp.itemUrl ? (
-                  <a href={comp.itemUrl} target="_blank" rel="noreferrer" style={{ color: "#7ec8e3", textDecoration: "none" }}>
-                    {comp.title}
-                  </a>
-                ) : (
-                  comp.title
-                )}
-              </td>
-              <td style={cellStyle}>${comp.soldPrice?.toFixed(2)}</td>
-              <td style={cellStyle}>
-                {comp.shippingPrice === 0 ? "Free" : comp.shippingPrice ? `$${comp.shippingPrice.toFixed(2)}` : "—"}
-              </td>
-              <td style={{ ...cellStyle, fontWeight: 600, color: "#4caf50" }}>
-                ${comp.totalPrice?.toFixed(2) || comp.soldPrice?.toFixed(2)}
-              </td>
-              <td style={cellStyle}>{comp.condition || "—"}</td>
-              <td style={cellStyle}>{formatType(comp.listingType)}</td>
-              <td style={cellStyle}>{comp.bidCount || "—"}</td>
-              <td style={cellStyle}>{formatDate(comp.soldDate)}</td>
+    <>
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                  style={{
+                    padding: "8px 10px",
+                    textAlign: "left",
+                    borderBottom: "1px solid #333",
+                    color: "#aaa",
+                    cursor: col.sortable ? "pointer" : "default",
+                    whiteSpace: "nowrap",
+                    userSelect: "none",
+                  }}
+                >
+                  {col.label}
+                  {col.sortable && sortCol === col.key && (sortDir === "asc" ? " ▲" : " ▼")}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {comps.map((comp, i) => {
+              const src = getImgSrc(comp);
+              return (
+                <tr key={comp.id || comp.ebayItemId || i} style={{ borderBottom: "1px solid #222" }}>
+                  <td style={cellStyle}>
+                    {src && (
+                      <img
+                        src={src}
+                        alt=""
+                        style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4, cursor: "pointer" }}
+                        loading="lazy"
+                        onClick={() => setLightboxSrc(src)}
+                      />
+                    )}
+                  </td>
+                  <td style={{ ...cellStyle, maxWidth: "300px" }}>
+                    {comp.itemUrl ? (
+                      <a href={comp.itemUrl} target="_blank" rel="noreferrer" style={{ color: "#7ec8e3", textDecoration: "none" }}>
+                        {comp.title}
+                      </a>
+                    ) : (
+                      comp.title
+                    )}
+                  </td>
+                  <td style={cellStyle}>${comp.soldPrice?.toFixed(2)}</td>
+                  <td style={cellStyle}>
+                    {comp.shippingPrice === 0 ? "Free" : comp.shippingPrice ? `$${comp.shippingPrice.toFixed(2)}` : "—"}
+                  </td>
+                  <td style={{ ...cellStyle, fontWeight: 600, color: "#4caf50" }}>
+                    ${comp.totalPrice?.toFixed(2) || comp.soldPrice?.toFixed(2)}
+                  </td>
+                  <td style={cellStyle}>{comp.condition || "—"}</td>
+                  <td style={cellStyle}>{formatType(comp.listingType)}</td>
+                  <td style={cellStyle}>{comp.bidCount || "—"}</td>
+                  <td style={cellStyle}>{formatDate(comp.soldDate)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

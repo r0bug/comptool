@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { apiGet } from "../api";
 import CompTable from "../components/CompTable";
+import CompTiles from "../components/CompTiles";
 import StatsBar from "../components/StatsBar";
 
 const PAGE_SIZE = 50;
@@ -13,6 +14,7 @@ export default function BrowsePage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState(localStorage.getItem("comptool_view") || "table");
 
   // Read filters from URL params
   const keyword = searchParams.get("q") || "";
@@ -172,12 +174,34 @@ export default function BrowsePage() {
 
       {stats && <StatsBar stats={stats} />}
 
-      <div style={{ marginBottom: "8px", color: "#888", fontSize: "13px" }}>
-        {loading ? "Loading..." : `${total} comp${total !== 1 ? "s" : ""} found`}
-        {keyword && ` matching "${keyword}"`}
+      <div style={{ marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ color: "#888", fontSize: "13px" }}>
+          {loading ? "Loading..." : `${total} comp${total !== 1 ? "s" : ""} found`}
+          {keyword && ` matching "${keyword}"`}
+        </div>
+        <div style={{ display: "flex", gap: "4px" }}>
+          <button
+            onClick={() => { setViewMode("table"); localStorage.setItem("comptool_view", "table"); }}
+            style={{ ...viewBtn, ...(viewMode === "table" ? viewBtnActive : {}) }}
+            title="Table view"
+          >
+            &#9776;
+          </button>
+          <button
+            onClick={() => { setViewMode("tiles"); localStorage.setItem("comptool_view", "tiles"); }}
+            style={{ ...viewBtn, ...(viewMode === "tiles" ? viewBtnActive : {}) }}
+            title="Tile view"
+          >
+            &#9638;
+          </button>
+        </div>
       </div>
 
-      <CompTable comps={comps} onSort={handleSort} />
+      {viewMode === "tiles" ? (
+        <CompTiles comps={comps} />
+      ) : (
+        <CompTable comps={comps} onSort={handleSort} />
+      )}
 
       {totalPages > 1 && (
         <div style={paginationStyle}>
@@ -261,4 +285,20 @@ const pageBtnStyle = {
   borderRadius: "6px",
   cursor: "pointer",
   fontSize: "13px",
+};
+
+const viewBtn = {
+  padding: "6px 10px",
+  background: "#16213e",
+  color: "#666",
+  border: "1px solid #0f3460",
+  borderRadius: "4px",
+  cursor: "pointer",
+  fontSize: "16px",
+  lineHeight: 1,
+};
+
+const viewBtnActive = {
+  color: "#e94560",
+  borderColor: "#e94560",
 };
