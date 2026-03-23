@@ -15,6 +15,10 @@
     "enricher:start": "pm2 start src/services/enricher.js --name comptool-enricher",
     "enricher:stop": "pm2 stop comptool-enricher",
     "enricher:logs": "pm2 logs comptool-enricher --lines 50",
+    "ebay-enricher": "node src/services/ebayEnricher.js",
+    "ebay-enricher:start": "pm2 start src/services/ebayEnricher.js --name comptool-ebay-enricher",
+    "ebay-enricher:stop": "pm2 stop comptool-ebay-enricher",
+    "ebay-enricher:logs": "pm2 logs comptool-ebay-enricher --lines 50",
     "ext:build": "cd extension && zip -r ../public/comptool-extension.zip . -x '.*'"
   },
   "keywords": [],

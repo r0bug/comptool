@@ -57,12 +57,18 @@ router.get("/stats", async (req, res) => {
 router.get("/enricher/status", (req, res) => {
   const fs = require("fs");
   const path = require("path");
+  const result = {};
   try {
-    const data = JSON.parse(fs.readFileSync(path.join(__dirname, "../../data/enricher-status.json"), "utf-8"));
-    res.json(data);
+    result.htmlScraper = JSON.parse(fs.readFileSync(path.join(__dirname, "../../data/enricher-status.json"), "utf-8"));
   } catch {
-    res.json({ running: false, processed: 0, enriched: 0, failed: 0, skipped: 0, message: "Enricher not running" });
+    result.htmlScraper = { running: false };
   }
+  try {
+    result.ebayApi = JSON.parse(fs.readFileSync(path.join(__dirname, "../../data/ebay-enricher-status.json"), "utf-8"));
+  } catch {
+    result.ebayApi = { running: false };
+  }
+  res.json(result);
 });
 
 router.use("/search", require("./search"));
