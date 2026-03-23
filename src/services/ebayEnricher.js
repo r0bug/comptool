@@ -154,7 +154,7 @@ async function run() {
 
   // Test ListFlow connectivity
   try {
-    const resp = await fetch(`${LISTFLOW_URL}/api/health`, { signal: AbortSignal.timeout(5000) });
+    const resp = await fetch(`${LISTFLOW_URL}/health`, { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     console.log("ListFlow connection OK\n");
   } catch (err) {
