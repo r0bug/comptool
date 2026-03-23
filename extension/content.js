@@ -60,6 +60,22 @@
           }
         }
 
+        // Quantity sold (totalSoldCount column)
+        const qtyCell = row.querySelector('[class*="totalSoldCount"]');
+        let quantitySold = null;
+        if (qtyCell) {
+          const m = qtyCell.textContent.match(/([\d,]+)/);
+          if (m) quantitySold = parseInt(m[1].replace(",", ""));
+        }
+
+        // Total sales value (totalSalesValue column)
+        const salesCell = row.querySelector('[class*="totalSalesValue"]');
+        let totalSales = null;
+        if (salesCell) {
+          const m = salesCell.textContent.match(/\$?([\d,]+\.?\d*)/);
+          if (m) totalSales = parseFloat(m[1].replace(",", ""));
+        }
+
         // Bids
         const bidsCell = row.querySelector('[class*="bids"]');
         let bidCount = null;
@@ -96,6 +112,9 @@
           category: null,
           listingType,
           bidCount,
+          quantitySold,
+          totalSales,
+          watchers: null,
           seller: null,
           sellerFeedback: null,
           imageUrl,

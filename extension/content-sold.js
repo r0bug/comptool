@@ -90,6 +90,18 @@
         const imgEl = el.querySelector("img");
         const imageUrl = imgEl?.src || null;
 
+        // Watchers
+        const watchEl = el.querySelector('[class*="watcher"], [class*="watch"]');
+        let watchers = null;
+        if (watchEl) {
+          const wm = watchEl.textContent?.match(/(\d+)\s*watch/i);
+          if (wm) watchers = parseInt(wm[1]);
+        }
+
+        // Category — try breadcrumb or category link
+        const catEl = el.querySelector('[class*="category"], [class*="breadcrumb"]');
+        const category = catEl?.textContent?.trim() || null;
+
         // Sold date — look for "Sold [date]" text anywhere in the card
         let soldDate = new Date().toISOString();
         const allText = el.textContent || "";
@@ -108,9 +120,12 @@
           shippingPrice,
           totalPrice,
           condition,
-          category: null,
+          category,
           listingType,
           bidCount,
+          quantitySold: null,
+          totalSales: null,
+          watchers,
           seller,
           sellerFeedback,
           imageUrl,

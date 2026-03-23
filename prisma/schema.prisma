@@ -86,6 +86,9 @@ model SoldComp {
   category        String?
   listingType     String?
   bidCount        Int?
+  quantitySold    Int?
+  totalSales      Float?
+  watchers        Int?
 
   // Seller
   seller          String?

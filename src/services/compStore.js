@@ -32,26 +32,29 @@ async function saveComps(searchId, items, clientId = "default") {
   let existingCount = 0;
 
   for (const item of items) {
-    // Upsert the comp — unique on (clientId, ebayItemId)
+    // Build update data — only overwrite fields that have non-null values
+    // so a Terapeak scrape (no condition) doesn't erase condition from a sold search
+    const updateData = { title: item.title, soldPrice: item.soldPrice };
+    if (item.shippingPrice != null) updateData.shippingPrice = item.shippingPrice;
+    if (item.totalPrice != null) updateData.totalPrice = item.totalPrice;
+    if (item.condition) updateData.condition = item.condition;
+    if (item.category) updateData.category = item.category;
+    if (item.listingType) updateData.listingType = item.listingType;
+    if (item.bidCount != null) updateData.bidCount = item.bidCount;
+    if (item.quantitySold != null) updateData.quantitySold = item.quantitySold;
+    if (item.totalSales != null) updateData.totalSales = item.totalSales;
+    if (item.watchers != null) updateData.watchers = item.watchers;
+    if (item.seller) updateData.seller = item.seller;
+    if (item.sellerFeedback != null) updateData.sellerFeedback = item.sellerFeedback;
+    if (item.imageUrl) updateData.imageUrl = item.imageUrl;
+    if (item.itemUrl) updateData.itemUrl = item.itemUrl;
+    if (item.soldDate) updateData.soldDate = new Date(item.soldDate);
+
     const comp = await prisma.soldComp.upsert({
       where: {
         clientId_ebayItemId: { clientId, ebayItemId: item.ebayItemId },
       },
-      update: {
-        title: item.title,
-        soldPrice: item.soldPrice,
-        shippingPrice: item.shippingPrice,
-        totalPrice: item.totalPrice,
-        condition: item.condition,
-        category: item.category,
-        listingType: item.listingType,
-        bidCount: item.bidCount,
-        seller: item.seller,
-        sellerFeedback: item.sellerFeedback,
-        imageUrl: item.imageUrl,
-        itemUrl: item.itemUrl,
-        soldDate: item.soldDate ? new Date(item.soldDate) : null,
-      },
+      update: updateData,
       create: {
         clientId,
         ebayItemId: item.ebayItemId,
@@ -63,6 +66,9 @@ async function saveComps(searchId, items, clientId = "default") {
         category: item.category,
         listingType: item.listingType,
         bidCount: item.bidCount,
+        quantitySold: item.quantitySold,
+        totalSales: item.totalSales,
+        watchers: item.watchers,
         seller: item.seller,
         sellerFeedback: item.sellerFeedback,
         imageUrl: item.imageUrl,
@@ -184,6 +190,7 @@ async function listComps({
   dateFrom,
   dateTo,
   hasImage,
+  richOnly,
   limit = 50,
   offset = 0,
   sortBy = "soldDate",
@@ -243,6 +250,11 @@ async function listComps({
   // Has image
   if (hasImage === "true" || hasImage === true) {
     andConditions.push({ imageUrl: { not: null } });
+  }
+
+  // Rich data only — exclude items missing condition/seller (typically Terapeak)
+  if (richOnly === "true" || richOnly === true) {
+    andConditions.push({ condition: { not: null } });
   }
 
   const where = andConditions.length > 0 ? { AND: andConditions } : {};

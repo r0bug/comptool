@@ -16,7 +16,7 @@ router.get("/stats", async (req, res) => {
 // List comps with filters
 router.get("/", async (req, res) => {
   try {
-    const { keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, limit, offset, sortBy, sortDir } = req.query;
+    const { keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly, limit, offset, sortBy, sortDir } = req.query;
     const result = await compStore.listComps({
       keyword,
       exclude,
@@ -28,6 +28,7 @@ router.get("/", async (req, res) => {
       dateFrom,
       dateTo,
       hasImage,
+      richOnly,
       limit: parseInt(limit) || 50,
       offset: parseInt(offset) || 0,
       sortBy: sortBy || "soldDate",

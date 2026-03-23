@@ -29,6 +29,7 @@ export default function BrowsePage() {
   const dateFrom = searchParams.get("from") || "";
   const dateTo = searchParams.get("to") || "";
   const hasImage = searchParams.get("img") || "";
+  const richOnly = searchParams.get("rich") || "";
   const sortBy = searchParams.get("sort") || "soldDate";
   const sortDir = searchParams.get("dir") || "desc";
   const pageSize = parseInt(searchParams.get("size") || "50");
@@ -37,12 +38,12 @@ export default function BrowsePage() {
   // Form state
   const [f, setF] = useState({
     keyword, exclude, minPrice: minPrice, maxPrice: maxPrice,
-    condition, listingType, seller, dateFrom, dateTo, hasImage,
+    condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly,
   });
 
   useEffect(() => {
     setF({ keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage });
-  }, [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage]);
+  }, [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly]);
 
   const fetchComps = useCallback(async () => {
     setLoading(true);
@@ -59,6 +60,7 @@ export default function BrowsePage() {
       if (dateFrom) p.set("dateFrom", dateFrom);
       if (dateTo) p.set("dateTo", dateTo);
       if (hasImage) p.set("hasImage", hasImage);
+      if (richOnly) p.set("richOnly", richOnly);
       p.set("sortBy", sortBy);
       p.set("sortDir", sortDir);
       p.set("limit", pageSize);
@@ -79,7 +81,7 @@ export default function BrowsePage() {
     } finally {
       setLoading(false);
     }
-  }, [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, sortBy, sortDir, pageSize, page]);
+  }, [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly, sortBy, sortDir, pageSize, page]);
 
   useEffect(() => { fetchComps(); }, [fetchComps]);
 
@@ -96,6 +98,7 @@ export default function BrowsePage() {
     if (merged.dateFrom) params.from = merged.dateFrom;
     if (merged.dateTo) params.to = merged.dateTo;
     if (merged.hasImage) params.img = merged.hasImage;
+    if (merged.richOnly) params.rich = merged.richOnly;
     params.sort = sortBy;
     params.dir = sortDir;
     params.size = String(pageSize);
@@ -134,7 +137,7 @@ export default function BrowsePage() {
   }
 
   function clearAll() {
-    setF({ keyword: "", exclude: "", minPrice: "", maxPrice: "", condition: "", listingType: "", seller: "", dateFrom: "", dateTo: "", hasImage: "" });
+    setF({ keyword: "", exclude: "", minPrice: "", maxPrice: "", condition: "", listingType: "", seller: "", dateFrom: "", dateTo: "", hasImage: "", richOnly: "" });
     setSearchParams({});
   }
 
@@ -144,8 +147,8 @@ export default function BrowsePage() {
   }
 
   const totalPages = Math.ceil(total / pageSize);
-  const hasFilters = keyword || exclude || minPrice || maxPrice || condition || listingType || seller || dateFrom || dateTo || hasImage;
-  const activeFilterCount = [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage].filter(Boolean).length;
+  const hasFilters = keyword || exclude || minPrice || maxPrice || condition || listingType || seller || dateFrom || dateTo || hasImage || richOnly;
+  const activeFilterCount = [keyword, exclude, minPrice, maxPrice, condition, listingType, seller, dateFrom, dateTo, hasImage, richOnly].filter(Boolean).length;
 
   return (
     <div>
@@ -220,6 +223,12 @@ export default function BrowsePage() {
                 <option value="true">Has Image</option>
               </select>
             </FilterGroup>
+            <FilterGroup label="Data Source">
+              <select value={f.richOnly} onChange={(e) => setF({ ...f, richOnly: e.target.value })} style={input}>
+                <option value="">All Sources</option>
+                <option value="true">Detailed Only</option>
+              </select>
+            </FilterGroup>
           </div>
           <button onClick={() => applyFilters()} style={{ ...btnPrimary, marginTop: 8, fontSize: 12, padding: "6px 16px" }}>Apply Filters</button>
         </div>
@@ -241,6 +250,7 @@ export default function BrowsePage() {
           {dateFrom && <Pill label={`From: ${dateFrom}`} onRemove={() => applyFilters({ dateFrom: "" })} />}
           {dateTo && <Pill label={`To: ${dateTo}`} onRemove={() => applyFilters({ dateTo: "" })} />}
           {hasImage && <Pill label="Has Image" onRemove={() => applyFilters({ hasImage: "" })} />}
+          {richOnly && <Pill label="Detailed Only" onRemove={() => applyFilters({ richOnly: "" })} color="#1565c0" />}
         </div>
       )}
 
