@@ -11,6 +11,7 @@
     "db:migrate": "npx prisma migrate dev",
     "db:generate": "npx prisma generate",
     "db:studio": "npx prisma studio",
+    "categorize": "node src/services/categorizer.js",
     "enricher": "node src/services/enricher.js",
     "enricher:start": "pm2 start src/services/enricher.js --name comptool-enricher",
     "enricher:stop": "pm2 stop comptool-enricher",

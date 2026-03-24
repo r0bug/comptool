@@ -46,6 +46,8 @@ async function saveComps(searchId, items, clientId = "default") {
     if (item.shippingPrice != null) updateData.shippingPrice = item.shippingPrice;
     if (item.totalPrice != null) updateData.totalPrice = item.totalPrice;
     if (item.condition) updateData.condition = item.condition;
+    // Category: always overwrite with non-junk values — scraped categories from eBay
+    // are more specific than keyword-guessed ones, so newer data wins
     if (item.category && !isJunkCategory(item.category)) updateData.category = item.category;
     if (item.listingType) updateData.listingType = item.listingType;
     if (item.bidCount != null) updateData.bidCount = item.bidCount;
