@@ -1,5 +1,5 @@
 # CompTool — eBay Sold Comps Research Tool
-### Alpha Release 1 (v1.4.1) — 2026-03-23
+### Beta Release 1 (v1.6.0) — 2026-03-24
 
 Research what items sell for on eBay by scraping Terapeak and eBay sold search data via a Chrome extension, storing everything in PostgreSQL, and providing a rich searchable dashboard with price analytics.
 
@@ -14,7 +14,7 @@ Research what items sell for on eBay by scraping Terapeak and eBay sold search d
 
 ## Features
 
-### Chrome Extension (v1.4.1)
+### Chrome Extension (v1.6.0)
 - Manifest V3 content scripts on **Terapeak Research** and **eBay sold search** pages
 - **Auto-import** — comps save automatically when results load (toggle on/off)
 - Works on: keyword search + sold filter, seller store pages, category pages, filtered views
@@ -24,13 +24,17 @@ Research what items sell for on eBay by scraping Terapeak and eBay sold search d
 - Self-update version checking from server
 
 ### Browse & Search
-- **Rich pivot search** — keyword with exclude terms (NOT filter), price range, condition, listing type, seller name, date range
-- **"Detailed Only" filter** — exclude Terapeak items missing condition/seller data for cleaner analysis
-- **Scalable tile view** — drag slider to resize tiles (140px–400px), hover for full details + action buttons (View on eBay, Copy URL, Copy Item #)
-- **Table view** — sortable columns with clickable image thumbnails
+- **Boolean search builder** — multi-row query with AND/OR/NOT operators, "+ Add Term" to build complex queries
+- **Sidebar facets** — drillable category hierarchy, condition counts, listing type counts — click to filter instantly
+- **Exclude terms** — filter OUT unwanted keywords (comma or space separated)
+- **Advanced filters** — price range, condition, category, listing type, seller, date range, has image, detailed only
+- **Right-click context menu** — Sell Similar on eBay, Copy URL/Item ID/Title, Search Seller's sold items
+- **Configurable table columns** — toggle any of 15 columns on/off (Qty Sold, Total Sales, Watchers, Seller, Feedback, Item ID, etc.)
+- **Scalable tile view** — desktop: pixel-size slider (140–400px). Mobile: 1/2/3/4 column buttons
+- **Active filter pills** — visual feedback with one-click removal per filter
+- **Deduplication** — cross-client duplicates automatically merged in results
 - **9 sort options** — newest, oldest, price high/low, total high/low, title A-Z, recently added
-- **Active filter pills** — visual feedback with one-click removal
-- **Full pagination** — page size selector (25/50/100/200), numbered pages
+- **Full pagination** — page size selector (25/50/100/200), numbered pages with first/last
 
 ### Image System
 - **Lightbox** — click any image to zoom (scroll 0.25x–5x), drag to pan, keyboard shortcuts
@@ -38,9 +42,13 @@ Research what items sell for on eBay by scraping Terapeak and eBay sold search d
 - **Backfill** — bulk cache all uncached images via API endpoint
 
 ### Smart Data Enrichment
-- **Progressive upsert** — same item scraped from multiple sources (Terapeak + sold search) gets enriched, never overwritten with nulls
+- **Progressive upsert** — same item scraped from multiple sources gets enriched, never overwritten with nulls
 - **Terapeak** captures: title, price, shipping, listing type, bids, quantity sold, total sales, image, date
-- **Sold search** captures: all of above + condition, seller, feedback, watchers, category
+- **Sold search** captures: all of above + condition, seller, feedback, watchers, full category path
+- **eBay API enricher** — background worker uses ListFlow's eBay Browse API to backfill category, condition, seller for existing comps
+- **HTML enricher** — fallback scraper fetches item pages directly for additional details
+- **Category hierarchy** — full breadcrumb paths (e.g. "eBay Motors > Parts & Accessories > Motorcycle Parts")
+- **Junk filtering** — rejects malformed categories ("More", "ebay.com(NNN)", etc.)
 
 ### SaaS-Ready Client Management
 - Multi-tenant with Client, ApiKey, Machine models
@@ -148,6 +156,11 @@ npx vite --port 5173             # Proxies /comp/api to port 3002
 | POST | `/comp/api/admin/auth` | Admin PW | Validate admin password |
 | GET | `/comp/api/admin/dashboard` | Admin PW | System stats |
 | GET | `/comp/api/admin/clients` | Admin PW | List clients |
+| GET | `/comp/api/comps/facets` | None | Category, condition, type counts for sidebar |
+| POST | `/comp/api/clients/recover` | None | Generate new key for email recovery |
+| GET | `/comp/api/stats` | None | Global stats (comp count, storage) |
+| GET | `/comp/api/enricher/status` | None | Background enricher progress |
+| GET | `/comp/api/extension/version` | None | Current extension version for auto-update |
 | POST | `/comp/api/images/backfill` | None | Cache uncached eBay images |
 
 ## Deployment
