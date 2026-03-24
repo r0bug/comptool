@@ -13,7 +13,15 @@ app.use(express.json({ limit: "5mb" }));
 // Cached images
 app.use("/comp/images", express.static(path.join(__dirname, "../data/images")));
 
-// Serve extension files for self-update
+// Extension download (zip) and files
+app.get("/comp/extension/download", (req, res) => {
+  const zipPath = path.join(__dirname, "../comptool-extension.zip");
+  if (require("fs").existsSync(zipPath)) {
+    res.download(zipPath, "comptool-extension.zip");
+  } else {
+    res.status(404).send("Extension zip not built. Run: cd extension && zip -r ../comptool-extension.zip .");
+  }
+});
 app.use("/comp/extension", express.static(path.join(__dirname, "../extension")));
 
 // API routes
