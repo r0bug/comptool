@@ -263,7 +263,7 @@ export default function BrowsePage() {
               {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             {viewMode === "tiles" && (
-              {isMobile ? (
+              isMobile ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   {[1, 2, 3, 4].map((n) => (
                     <button key={n} onClick={() => { setMobileCols(n); localStorage.setItem("comptool_mobile_cols", n); }}
@@ -272,7 +272,7 @@ export default function BrowsePage() {
                 </div>
               ) : (
                 <input type="range" min="140" max="400" value={tileSize} onChange={(e) => { setTileSize(parseInt(e.target.value)); localStorage.setItem("comptool_tile_size", e.target.value); }} style={{ width: 70, accentColor: "#e94560" }} />
-              )}
+              )
             )}
             <div style={{ display: "flex", gap: 2 }}>
               <button onClick={() => { setViewMode("table"); localStorage.setItem("comptool_view", "table"); }} style={{ ...vBtn, ...(viewMode === "table" ? vBtnActive : {}) }}>&#9776;</button>
