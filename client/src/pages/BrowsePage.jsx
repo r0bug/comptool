@@ -19,6 +19,8 @@ export default function BrowsePage() {
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState(localStorage.getItem("comptool_view") || "tiles");
   const [tileSize, setTileSize] = useState(parseInt(localStorage.getItem("comptool_tile_size") || "220"));
+  const [mobileCols, setMobileCols] = useState(parseInt(localStorage.getItem("comptool_mobile_cols") || "3"));
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
   const [showSidebar, setShowSidebar] = useState(window.innerWidth > 900);
 
   // URL params
@@ -261,7 +263,16 @@ export default function BrowsePage() {
               {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             {viewMode === "tiles" && (
-              <input type="range" min="140" max="400" value={tileSize} onChange={(e) => { setTileSize(parseInt(e.target.value)); localStorage.setItem("comptool_tile_size", e.target.value); }} style={{ width: 70, accentColor: "#e94560" }} />
+              {isMobile ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {[1, 2, 3, 4].map((n) => (
+                    <button key={n} onClick={() => { setMobileCols(n); localStorage.setItem("comptool_mobile_cols", n); }}
+                      style={{ ...vBtn, ...(mobileCols === n ? vBtnActive : {}), padding: "4px 8px", fontSize: 12 }}>{n}</button>
+                  ))}
+                </div>
+              ) : (
+                <input type="range" min="140" max="400" value={tileSize} onChange={(e) => { setTileSize(parseInt(e.target.value)); localStorage.setItem("comptool_tile_size", e.target.value); }} style={{ width: 70, accentColor: "#e94560" }} />
+              )}
             )}
             <div style={{ display: "flex", gap: 2 }}>
               <button onClick={() => { setViewMode("table"); localStorage.setItem("comptool_view", "table"); }} style={{ ...vBtn, ...(viewMode === "table" ? vBtnActive : {}) }}>&#9776;</button>
@@ -271,7 +282,7 @@ export default function BrowsePage() {
         </div>
 
         {/* Results */}
-        {viewMode === "tiles" ? <CompTiles comps={comps} tileSize={tileSize} /> : <CompTable comps={comps} onSort={handleSort} />}
+        {viewMode === "tiles" ? <CompTiles comps={comps} tileSize={tileSize} mobileCols={mobileCols} /> : <CompTable comps={comps} onSort={handleSort} />}
 
         {/* Pagination */}
         {totalPages > 1 && (

@@ -2,7 +2,7 @@ import { useState } from "react";
 import ImageLightbox from "./ImageLightbox";
 import CompContextMenu from "./CompContextMenu";
 
-export default function CompTiles({ comps, tileSize = 220 }) {
+export default function CompTiles({ comps, tileSize = 220, mobileCols = 4 }) {
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [ctxMenu, setCtxMenu] = useState(null);
 
@@ -20,16 +20,15 @@ export default function CompTiles({ comps, tileSize = 220 }) {
     setCtxMenu({ comp, x: e.clientX, y: e.clientY });
   }
 
-  // On mobile, force 4 columns regardless of tileSize
   const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
-  const effectiveSize = isMobile ? Math.floor((window.innerWidth - 40) / 4) : tileSize;
-  const gap = isMobile ? 4 : 10;
+  const cols = isMobile ? mobileCols : null;
+  const gap = isMobile ? (mobileCols >= 3 ? 4 : 8) : 10;
 
   return (
     <>
       {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
       {ctxMenu && <CompContextMenu comp={ctxMenu.comp} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(4, 1fr)" : `repeat(auto-fill, minmax(${tileSize}px, 1fr))`, gap }}>
+      <div style={{ display: "grid", gridTemplateColumns: cols ? `repeat(${cols}, 1fr)` : `repeat(auto-fill, minmax(${tileSize}px, 1fr))`, gap }}>
         {comps.map((comp, i) => {
           const src = getImgSrc(comp);
           return (
@@ -39,7 +38,8 @@ export default function CompTiles({ comps, tileSize = 220 }) {
               imgSrc={src}
               onImageClick={() => src && setLightboxSrc(src)}
               onContextMenu={(e) => handleContextMenu(e, comp)}
-              tileSize={tileSize}
+              compact={isMobile && mobileCols >= 3}
+              showInfo={!isMobile || mobileCols <= 2}
             />
           );
         })}
@@ -48,11 +48,8 @@ export default function CompTiles({ comps, tileSize = 220 }) {
   );
 }
 
-function Tile({ comp, imgSrc, onImageClick, onContextMenu, tileSize }) {
+function Tile({ comp, imgSrc, onImageClick, onContextMenu, compact, showInfo }) {
   const [hovered, setHovered] = useState(false);
-  const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
-  const isCompact = isMobile || tileSize < 160;
-  const showDetails = !isCompact && tileSize >= 180;
 
   return (
     <div
@@ -69,20 +66,20 @@ function Tile({ comp, imgSrc, onImageClick, onContextMenu, tileSize }) {
           <div style={noImg}>No Image</div>
         )}
         {/* Price badge */}
-        <div style={{ ...priceBadge, background: comp.listingType === "Auction" ? "#ff9800" : "#4caf50", fontSize: isCompact ? 10 : 13, padding: isCompact ? "2px 4px" : "3px 8px" }}>
+        <div style={{ ...priceBadge, background: comp.listingType === "Auction" ? "#ff9800" : "#4caf50", fontSize: compact ? 10 : 13, padding: compact ? "2px 4px" : "3px 8px" }}>
           ${comp.soldPrice?.toFixed(2)}
         </div>
         {/* Condition badge */}
-        {comp.condition && !isCompact && (
+        {comp.condition && !compact && (
           <div style={condBadge}>{comp.condition}</div>
         )}
       </div>
 
-      {/* Info bar — hidden on very compact tiles */}
-      {!isCompact && (
+      {/* Info bar — shown based on column count */}
+      {showInfo && (
         <div style={infoBar}>
           <div style={titleText}>{comp.title}</div>
-        {hovered && showDetails && (
+        {hovered && !compact && (
           <div style={detailsRow}>
             {comp.shippingPrice != null && (
               <span style={detailTag}>{comp.shippingPrice === 0 ? "Free ship" : `+$${comp.shippingPrice.toFixed(2)}`}</span>
