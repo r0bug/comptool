@@ -1,5 +1,13 @@
 const prisma = require("../config/database");
 
+function isJunkCategory(cat) {
+  if (!cat) return true;
+  if (cat === "More" || cat === "See All" || cat === "All") return true;
+  if (/^ebay\.com\(\d+\)$/i.test(cat)) return true;
+  if (cat.length < 3 || cat.length > 200) return true;
+  return false;
+}
+
 /**
  * Create a new search record.
  */
@@ -38,7 +46,7 @@ async function saveComps(searchId, items, clientId = "default") {
     if (item.shippingPrice != null) updateData.shippingPrice = item.shippingPrice;
     if (item.totalPrice != null) updateData.totalPrice = item.totalPrice;
     if (item.condition) updateData.condition = item.condition;
-    if (item.category) updateData.category = item.category;
+    if (item.category && !isJunkCategory(item.category)) updateData.category = item.category;
     if (item.listingType) updateData.listingType = item.listingType;
     if (item.bidCount != null) updateData.bidCount = item.bidCount;
     if (item.quantitySold != null) updateData.quantitySold = item.quantitySold;
@@ -265,10 +273,12 @@ async function listComps({
 
   const where = andConditions.length > 0 ? { AND: andConditions } : {};
 
+  // Deduplicate: distinct on ebayItemId, prefer most recently updated record
   const [comps, total] = await Promise.all([
     prisma.soldComp.findMany({
       where,
-      orderBy: { [sortBy]: sortDir },
+      orderBy: [{ [sortBy]: sortDir }, { updatedAt: "desc" }],
+      distinct: ["ebayItemId"],
       take: limit,
       skip: offset,
     }),
