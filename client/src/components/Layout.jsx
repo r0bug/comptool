@@ -29,6 +29,7 @@ export default function Layout() {
             <NavLink to="/browse" label="Browse" path={location.pathname} />
             <NavLink to="/history" label="History" path={location.pathname} exact />
             <a href="/comp/extension/" target="_blank" rel="noreferrer" className="ct-nav-link ct-nav-ext">Extension</a>
+            <Link to="/bookmarklet" className="ct-nav-link ct-nav-ext">Mobile</Link>
             <Link to="/register" className="ct-nav-link ct-nav-ext">API Key</Link>
           </nav>
         </div>

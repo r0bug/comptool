@@ -11,6 +11,7 @@ import AdminClientList from "./pages/admin/AdminClientList";
 import AdminClientDetail from "./pages/admin/AdminClientDetail";
 import RegisterPage from "./pages/register/RegisterPage";
 import RegisterSuccess from "./pages/register/RegisterSuccess";
+import BookmarkletPage from "./pages/BookmarkletPage";
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
         {/* Registration portal */}
         <Route path="register" element={<RegisterPage />} />
         <Route path="register/success" element={<RegisterSuccess />} />
+        <Route path="bookmarklet" element={<BookmarkletPage />} />
       </Routes>
     </BrowserRouter>
   );
