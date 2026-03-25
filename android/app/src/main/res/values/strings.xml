@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CompTool Capture</string>
+    <string name="accessibility_desc">Reads eBay sold listing data to save to your CompTool database. Only active when the eBay app is in the foreground.</string>
+</resources>

@@ -13,6 +13,16 @@ app.use(express.json({ limit: "5mb" }));
 // Cached images
 app.use("/comp/images", express.static(path.join(__dirname, "../data/images")));
 
+// Android app download
+app.get("/comp/android/download", (req, res) => {
+  const apkPath = path.join(__dirname, "../comptool-capture.apk");
+  if (require("fs").existsSync(apkPath)) {
+    res.download(apkPath, "comptool-capture.apk");
+  } else {
+    res.status(404).send("APK not built");
+  }
+});
+
 // Extension download (zip) and files
 app.get("/comp/extension/download", (req, res) => {
   const zipPath = path.join(__dirname, "../comptool-extension.zip");
