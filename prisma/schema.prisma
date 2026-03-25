@@ -63,6 +63,14 @@ model Machine {
   @@index([apiKeyId])
 }
 
+// ─── System Settings ─────────────────────────────────────
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 // ─── Core Data ───────────────────────────────────────────
 
 model SoldComp {

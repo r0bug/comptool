@@ -2,22 +2,38 @@ const router = require("express").Router();
 const clientStore = require("../services/clientStore");
 const prisma = require("../config/database");
 const { generateApiKey } = require("../services/keyGenerator");
+const settings = require("../services/settings");
 
 // Public registration
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, company, sendEmail } = req.body;
-
-    if (!name || typeof name !== "string" || name.trim().length < 2) {
-      return res.status(400).json({ error: "Name is required (min 2 characters)" });
+    // Check if registration is open
+    const regOpen = await settings.get("registration_open");
+    if (regOpen === "false") {
+      return res.status(403).json({ error: "Registration is currently closed" });
     }
-    if (!email || typeof email !== "string" || !email.includes("@")) {
-      return res.status(400).json({ error: "Valid email is required" });
+
+    const { name, email, company, sendEmail } = req.body;
+    const saasMode = await settings.isSaasMode();
+
+    if (saasMode) {
+      // Full validation in SaaS mode
+      if (!name || typeof name !== "string" || name.trim().length < 2) {
+        return res.status(400).json({ error: "Name is required (min 2 characters)" });
+      }
+      if (!email || typeof email !== "string" || !email.includes("@") || !email.includes(".")) {
+        return res.status(400).json({ error: "Valid email is required" });
+      }
+    } else {
+      // Relaxed validation — accept anything
+      if (!name || name.trim().length < 1) {
+        return res.status(400).json({ error: "Name is required" });
+      }
     }
 
     const { client, apiKey } = await clientStore.createClient({
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: (email || `${name.trim().replace(/\s+/g, ".")}@comptool.local`).trim().toLowerCase(),
       company: company?.trim() || null,
     });
 

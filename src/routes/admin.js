@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const requireAdmin = require("../middleware/adminAuth");
 const clientStore = require("../services/clientStore");
+const settings = require("../services/settings");
 
 // All admin routes require admin password
 router.use(requireAdmin);
@@ -10,11 +11,35 @@ router.post("/auth", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Get all settings
+router.get("/settings", async (req, res) => {
+  try {
+    const all = await settings.getAll();
+    res.json(all);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update settings
+router.patch("/settings", async (req, res) => {
+  try {
+    await settings.setMany(req.body);
+    const all = await settings.getAll();
+    res.json(all);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Dashboard stats
 router.get("/dashboard", async (req, res) => {
   try {
-    const stats = await clientStore.getDashboardStats();
-    res.json(stats);
+    const [stats, siteSettings] = await Promise.all([
+      clientStore.getDashboardStats(),
+      settings.getAll(),
+    ]);
+    res.json({ ...stats, settings: siteSettings });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

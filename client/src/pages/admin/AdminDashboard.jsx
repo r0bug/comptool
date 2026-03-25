@@ -1,16 +1,46 @@
 import { useState, useEffect } from "react";
-import { adminGet } from "../../api";
+import { adminGet, adminPatch } from "../../api";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     adminGet("/admin/dashboard").then(setStats).catch((e) => setError(e.message));
   }, []);
 
+  async function toggleSetting(key) {
+    setSaving(true);
+    try {
+      const current = stats.settings[key];
+      const newVal = current === "true" ? "false" : "true";
+      const updated = await adminPatch("/admin/settings", { [key]: newVal });
+      setStats((s) => ({ ...s, settings: updated }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateSetting(key, value) {
+    setSaving(true);
+    try {
+      const updated = await adminPatch("/admin/settings", { [key]: value });
+      setStats((s) => ({ ...s, settings: updated }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (error) return <p style={{ color: "#e94560" }}>{error}</p>;
   if (!stats) return <p style={{ color: "#888" }}>Loading...</p>;
+
+  const s = stats.settings || {};
+  const saasOn = s.saas_mode === "true";
 
   const cards = [
     { label: "Clients", value: stats.activeClients, sub: `${stats.totalClients} total` },
@@ -26,7 +56,8 @@ export default function AdminDashboard() {
     <div>
       <h2 style={{ marginBottom: 20 }}>Admin Dashboard</h2>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 32 }}>
+      {/* Stats cards */}
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
         {cards.map((c) => (
           <div key={c.label} style={cardStyle}>
             <div style={{ fontSize: 12, color: "#888", textTransform: "uppercase" }}>{c.label}</div>
@@ -36,6 +67,40 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {/* SaaS Mode Toggle */}
+      <div style={sectionStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16 }}>SaaS Mode</h3>
+            <p style={{ color: "#888", fontSize: 12, margin: "4px 0 0" }}>
+              {saasOn ? "Full SaaS: email verification, usage limits, billing enforced" : "Open mode: unlimited free keys, no email required"}
+            </p>
+          </div>
+          <button
+            onClick={() => toggleSetting("saas_mode")}
+            disabled={saving}
+            style={{ ...toggleBtn, background: saasOn ? "#4caf50" : "#333" }}
+          >
+            {saasOn ? "ON" : "OFF"}
+          </button>
+        </div>
+
+        {/* Settings grid — shown regardless, but some only apply in SaaS mode */}
+        <div style={settingsGrid}>
+          <Toggle label="Registration Open" value={s.registration_open} onChange={() => toggleSetting("registration_open")} />
+          <Toggle label="Require Email Verification" value={s.require_email_verification} onChange={() => toggleSetting("require_email_verification")} disabled={!saasOn} />
+          <Toggle label="Stripe Billing" value={s.stripe_enabled} onChange={() => toggleSetting("stripe_enabled")} disabled={!saasOn} />
+
+          <NumberSetting label="Free Tier: Monthly Searches" value={s.max_free_searches} onChange={(v) => updateSetting("max_free_searches", v)} disabled={!saasOn} />
+          <NumberSetting label="Free Tier: Max Comps" value={s.max_free_comps} onChange={(v) => updateSetting("max_free_comps", v)} disabled={!saasOn} />
+          <NumberSetting label="Free Tier: Max API Keys" value={s.max_free_keys} onChange={(v) => updateSetting("max_free_keys", v)} disabled={!saasOn} />
+
+          <NumberSetting label="Pro Price ($/mo)" value={s.pro_price_monthly} onChange={(v) => updateSetting("pro_price_monthly", v)} disabled={!saasOn} />
+          <NumberSetting label="Enterprise Price ($/mo)" value={s.enterprise_price_monthly} onChange={(v) => updateSetting("enterprise_price_monthly", v)} disabled={!saasOn} />
+        </div>
+      </div>
+
+      {/* Recent Activity */}
       <h3 style={{ marginBottom: 12 }}>Recent Activity</h3>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
@@ -66,22 +131,46 @@ export default function AdminDashboard() {
   );
 }
 
-const cardStyle = {
-  background: "#16213e",
-  padding: "14px 22px",
-  borderRadius: 6,
-  border: "1px solid #0f3460",
-  minWidth: 120,
-  textAlign: "center",
-};
+function Toggle({ label, value, onChange, disabled }) {
+  const on = value === "true";
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", opacity: disabled ? 0.4 : 1 }}>
+      <span style={{ fontSize: 13, color: "#ccc" }}>{label}</span>
+      <button onClick={disabled ? undefined : onChange} style={{ ...miniToggle, background: on ? "#4caf50" : "#333" }} disabled={disabled}>
+        {on ? "ON" : "OFF"}
+      </button>
+    </div>
+  );
+}
 
-const thStyle = {
-  padding: "8px 10px",
-  textAlign: "left",
-  borderBottom: "1px solid #333",
-  color: "#aaa",
-};
+function NumberSetting({ label, value, onChange, disabled }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(value);
 
-const tdStyle = {
-  padding: "8px 10px",
-};
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", opacity: disabled ? 0.4 : 1 }}>
+      <span style={{ fontSize: 13, color: "#ccc" }}>{label}</span>
+      {editing ? (
+        <div style={{ display: "flex", gap: 4 }}>
+          <input type="number" value={val} onChange={(e) => setVal(e.target.value)} style={numInput} autoFocus />
+          <button onClick={() => { onChange(val); setEditing(false); }} style={miniSave}>Save</button>
+        </div>
+      ) : (
+        <button onClick={disabled ? undefined : () => setEditing(true)} style={numDisplay} disabled={disabled}>
+          {value}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const cardStyle = { background: "#16213e", padding: "14px 22px", borderRadius: 6, border: "1px solid #0f3460", minWidth: 120, textAlign: "center" };
+const sectionStyle = { background: "#16213e", border: "1px solid #0f3460", borderRadius: 8, padding: "20px", marginBottom: 24 };
+const settingsGrid = { display: "flex", flexDirection: "column", borderTop: "1px solid #0f3460", paddingTop: 12 };
+const toggleBtn = { padding: "8px 24px", color: "white", border: "none", borderRadius: 20, cursor: "pointer", fontWeight: 700, fontSize: 14 };
+const miniToggle = { padding: "4px 14px", color: "white", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 600, fontSize: 11 };
+const numInput = { width: 70, padding: "4px 8px", background: "#0a0a1a", border: "1px solid #0f3460", borderRadius: 4, color: "#eee", fontSize: 13, textAlign: "right" };
+const numDisplay = { background: "#0a0a1a", border: "1px solid #0f3460", borderRadius: 4, padding: "4px 12px", color: "#eee", fontSize: 13, cursor: "pointer" };
+const miniSave = { padding: "4px 10px", background: "#e94560", color: "white", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 11 };
+const thStyle = { padding: "8px 10px", textAlign: "left", borderBottom: "1px solid #333", color: "#aaa" };
+const tdStyle = { padding: "8px 10px" };
