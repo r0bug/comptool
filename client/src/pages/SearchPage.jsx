@@ -92,7 +92,7 @@ export default function SearchPage() {
 
         <h4 style={{ color: "#aaa", margin: "16px 0 8px" }}>Mobile (Android)</h4>
         <ol className="ct-install-list">
-          <li>Install <a href="https://github.com/user/cromite" target="_blank" rel="noreferrer" style={link}>Cromite Browser</a> — a Chromium fork that supports extensions on Android</li>
+          <li>Install <a href="https://github.com/uazo/cromite" target="_blank" rel="noreferrer" style={link}>Cromite Browser</a> — a Chromium fork that supports extensions on Android</li>
           <li><a href="/comp/extension/download" style={link}>Download the extension zip</a> in Cromite</li>
           <li>Open <code style={code}>chrome://extensions/</code> in Cromite</li>
           <li>Enable <strong>Developer mode</strong>, load the extension</li>
