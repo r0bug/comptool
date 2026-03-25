@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "CompTool - eBay Sold Comps",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Scrape eBay Terapeak sold comps and save to your CompTool database",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "tabs", "scripting"],
   "host_permissions": [
     "https://www.ebay.com/*",
     "https://listflow.robug.com/*",

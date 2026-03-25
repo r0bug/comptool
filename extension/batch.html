@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CompTool Batch Search</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { width: 420px; font-family: -apple-system, sans-serif; font-size: 13px; color: #333; padding: 16px; }
+    h2 { font-size: 16px; margin-bottom: 8px; }
+    p { color: #888; font-size: 12px; margin-bottom: 12px; }
+    textarea { width: 100%; height: 150px; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; font-family: monospace; resize: vertical; }
+    .controls { display: flex; gap: 8px; margin-top: 8px; }
+    button { padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-start { background: #3665f3; color: white; flex: 1; }
+    .btn-stop { background: #c62828; color: white; }
+    .btn-clear { background: #eee; color: #333; }
+    #status { margin-top: 12px; padding: 10px; background: #f5f5f5; border-radius: 6px; font-size: 12px; min-height: 60px; }
+    .progress { margin-top: 8px; background: #eee; border-radius: 4px; height: 6px; }
+    .progress-bar { background: #3665f3; height: 100%; border-radius: 4px; transition: width 0.3s; }
+    label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #666; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h2>Batch Search</h2>
+  <p>Paste keywords (one per line). CompTool will search eBay sold listings for each and auto-capture all results.</p>
+  <textarea id="keywords" placeholder="bultaco fuel tank&#10;bsa motorcycle parts&#10;vintage bell helmet&#10;commodore 64"></textarea>
+  <label><input type="number" id="delay" value="8" min="3" max="30" style="width:50px; padding:4px;"> seconds between pages</label>
+  <div class="controls">
+    <button class="btn-start" id="startBtn">Start Batch</button>
+    <button class="btn-stop" id="stopBtn" disabled>Stop</button>
+    <button class="btn-clear" id="clearBtn">Clear</button>
+  </div>
+  <div class="progress" style="margin-top:12px"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+  <div id="status">Ready. Paste keywords and click Start.</div>
+  <script src="batch.js"></script>
+</body>
+</html>
