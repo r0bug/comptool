@@ -1,5 +1,5 @@
 # CompTool — eBay Sold Comps Research Tool
-### Beta Release 1 (v1.6.0) — 2026-03-24
+### Beta Release 2 (v1.7.0) — 2026-03-25
 
 Research what items sell for on eBay by scraping Terapeak and eBay sold search data via a Chrome extension, storing everything in PostgreSQL, and providing a rich searchable dashboard with price analytics.
 
@@ -14,14 +14,19 @@ Research what items sell for on eBay by scraping Terapeak and eBay sold search d
 
 ## Features
 
-### Chrome Extension (v1.6.0)
+### Chrome Extension (v1.7.0)
 - Manifest V3 content scripts on **Terapeak Research** and **eBay sold search** pages
 - **Auto-import** — comps save automatically when results load (toggle on/off)
 - Works on: keyword search + sold filter, seller store pages, category pages, filtered views
 - Captures: title, price, shipping, condition, seller, feedback, bids, quantity sold, total sales, watchers, images, sold date
 - **Smart keyword detection** — extracts from URL params, seller name, page heading, breadcrumbs, or page title
-- Machine ID tracking per installation, configurable API URL/key
-- Self-update version checking from server
+- Machine ID tracking per installation, auto-recovers API key on reinstall
+- **Batch Search** — paste keywords or pull from server, auto-paginates all results, runs unattended
+- **Server-driven queue** — server tells extensions what to search based on database gaps
+- **Auto-loop** — batch search fetches more keywords from server when done, runs indefinitely
+- **Hot code push** — server pushes JavaScript patches to extensions without reinstall (selector fixes, new scraping logic)
+- Self-update version checking, default API URL pre-configured
+- Works on Android via Cromite browser (github.com/uazo/cromite)
 
 ### Browse & Search
 - **Boolean search builder** — multi-row query with AND/OR/NOT operators, "+ Add Term" to build complex queries

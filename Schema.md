@@ -110,3 +110,16 @@ Many-to-many join: searches ↔ comps.
 | compId | Int | FK → SoldComp |
 
 PK: (searchId, compId)
+
+## System
+
+### Setting
+Key-value store for system configuration (SaaS mode, limits, extension patches).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| key | String | PK |
+| value | String | Setting value |
+| updatedAt | DateTime | Auto |
+
+Notable keys: `saas_mode`, `registration_open`, `max_free_searches`, `extension_patch`, `extension_script`
