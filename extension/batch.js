@@ -59,6 +59,7 @@ async function startBatch() {
   if (keywords.length === 0) return;
 
   const delay = parseInt(document.getElementById("delay").value) || 8;
+  const maxPages = parseInt(document.getElementById("maxPages")?.value) || 10;
   const site = document.getElementById("siteSelect")?.value || "ebay";
   autoLoop = document.getElementById("autoLoopCheck")?.checked || false;
   running = true;
@@ -101,11 +102,12 @@ async function startBatch() {
     // Check for pagination and keep going
     let pageNum = 1;
     while (running) {
+      if (pageNum >= maxPages) { status.textContent = `[${i + 1}/${keywords.length}] ${kw} — hit ${maxPages} page limit`; break; }
       const hasNext = await checkForNextPage(currentTab);
       if (!hasNext) break;
 
       pageNum++;
-      status.textContent = `[${i + 1}/${keywords.length}] ${kw} — page ${pageNum}...`;
+      status.textContent = `[${i + 1}/${keywords.length}] ${kw} — page ${pageNum}/${maxPages}...`;
 
       await clickNextPage(currentTab);
       await waitForTabLoad(currentTab, 15000);
