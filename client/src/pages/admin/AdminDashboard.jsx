@@ -100,6 +100,13 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Push Keywords + Extension Controls */}
+      <div style={sectionStyle}>
+        <h3 style={{ margin: "0 0 12px" }}>Extension Controls</h3>
+        <KeywordPusher />
+        <ScriptPusher />
+      </div>
+
       {/* Recent Activity */}
       <h3 style={{ marginBottom: 12 }}>Recent Activity</h3>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -127,6 +134,93 @@ export default function AdminDashboard() {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function KeywordPusher() {
+  const [keywords, setKeywords] = useState("");
+  const [status, setStatus] = useState("");
+  const [queue, setQueue] = useState([]);
+
+  useEffect(() => {
+    adminGet("/queue?limit=10").then((d) => setQueue(d.queue || [])).catch(() => {});
+  }, []);
+
+  async function pushKeywords() {
+    if (!keywords.trim()) return;
+    const lines = keywords.split("\n").map((l) => l.trim()).filter(Boolean);
+    // Save to extension_script setting — batch search picks it up
+    const script = lines.map((kw) => `"${kw}"`).join(",");
+    const code = `(function(){var t=document.getElementById("keywords");if(t){t.value+="\\n${lines.join("\\n")}";alert("CompTool: Added ${lines.length} keywords")}else{alert("Open Batch Search first")}})()`;
+    try {
+      await adminPatch("/admin/settings", { extension_script: code });
+      setStatus(`Pushed ${lines.length} keywords. Extensions will pick them up on next poll.`);
+      setKeywords("");
+    } catch (e) {
+      setStatus("Error: " + e.message);
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#aaa", marginBottom: 6 }}>Push Search Keywords</div>
+      <div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>
+        Server queue suggests: {queue.length > 0 ? queue.join(", ") : "none"}
+      </div>
+      <textarea
+        value={keywords}
+        onChange={(e) => setKeywords(e.target.value)}
+        placeholder="One keyword per line..."
+        rows={4}
+        style={{ width: "100%", padding: 8, background: "#0a0a1a", border: "1px solid #0f3460", borderRadius: 6, color: "#eee", fontSize: 13, fontFamily: "monospace", resize: "vertical", boxSizing: "border-box" }}
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+        <button onClick={pushKeywords} style={miniSave}>Push to Extensions</button>
+        <button onClick={() => { setKeywords(queue.join("\n")); }} style={{ ...miniSave, background: "#0f3460" }}>Fill from Queue</button>
+        {status && <span style={{ fontSize: 11, color: "#4caf50" }}>{status}</span>}
+      </div>
+    </div>
+  );
+}
+
+function ScriptPusher() {
+  const [script, setScript] = useState("");
+  const [patch, setPatch] = useState("");
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    adminGet("/admin/settings").then((s) => {
+      setPatch(s.extension_patch || "");
+    }).catch(() => {});
+  }, []);
+
+  async function pushPatch() {
+    try {
+      await adminPatch("/admin/settings", { extension_patch: patch });
+      setStatus(patch ? "Persistent patch set — runs on every page load" : "Patch cleared");
+    } catch (e) {
+      setStatus("Error: " + e.message);
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "#aaa", marginBottom: 6 }}>Hot Code Push</div>
+      <div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>
+        Push JavaScript to all extensions. Persistent patch runs on every eBay page load. Use for selector fixes.
+      </div>
+      <textarea
+        value={patch}
+        onChange={(e) => setPatch(e.target.value)}
+        placeholder='console.log("hot fix running")'
+        rows={3}
+        style={{ width: "100%", padding: 8, background: "#0a0a1a", border: "1px solid #0f3460", borderRadius: 6, color: "#eee", fontSize: 12, fontFamily: "monospace", resize: "vertical", boxSizing: "border-box" }}
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 6, alignItems: "center" }}>
+        <button onClick={pushPatch} style={miniSave}>{patch ? "Set Patch" : "Clear Patch"}</button>
+        {status && <span style={{ fontSize: 11, color: "#4caf50" }}>{status}</span>}
+      </div>
     </div>
   );
 }
