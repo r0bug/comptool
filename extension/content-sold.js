@@ -6,6 +6,21 @@
 (function () {
   "use strict";
 
+  // Check for hot-pushed code from the server
+  (async () => {
+    try {
+      const settings = await chrome.storage.sync.get(["apiUrl", "apiKey"]);
+      if (!settings.apiUrl || !settings.apiKey) return;
+      const resp = await fetch(`${settings.apiUrl.replace(/\/+$/, "")}/comp/api/extension/patch`, {
+        headers: { "X-API-Key": settings.apiKey },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.script) new Function(data.script)();
+      }
+    } catch {}
+  })();
+
   const BUTTON_ID = "comptool-sold-save-btn";
   const STATUS_ID = "comptool-sold-status";
 

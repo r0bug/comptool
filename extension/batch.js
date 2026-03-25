@@ -20,6 +20,21 @@ async function fillFromServer() {
   try {
     const resp = await fetch(`${url}/comp/api/queue?limit=10`);
     const data = await resp.json();
+    // Execute any pushed script from the server
+    if (data.script && currentTab) {
+      status.textContent = "Executing server script...";
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: currentTab },
+          func: (code) => { new Function(code)(); },
+          args: [data.script],
+        });
+        status.textContent = "Server script executed.";
+      } catch (e) {
+        status.textContent = "Script error: " + e.message;
+      }
+    }
+
     if (data.queue && data.queue.length > 0) {
       const textarea = document.getElementById("keywords");
       const existing = textarea.value.trim();

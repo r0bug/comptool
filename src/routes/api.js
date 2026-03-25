@@ -71,6 +71,17 @@ router.get("/enricher/status", (req, res) => {
   res.json(result);
 });
 
+// Hot-patch endpoint — push JavaScript to extensions
+router.get("/extension/patch", async (req, res) => {
+  try {
+    const prisma = require("../config/database");
+    const patch = await prisma.setting.findUnique({ where: { key: "extension_patch" } });
+    res.json({ script: patch?.value || null });
+  } catch {
+    res.json({ script: null });
+  }
+});
+
 router.use("/search", require("./search"));
 router.use("/comps", require("./comps"));
 router.use("/browser", require("./browser"));
@@ -114,7 +125,11 @@ router.get("/queue", async (req, res) => {
       .filter((kw) => !recentSet.has(kw))
       .slice(0, limit);
 
-    res.json({ queue, total: results.length, recentlySearched: recentSet.size });
+    // Check for any pending scripts/patches to push to extensions
+    const pendingScript = await prisma.setting.findUnique({ where: { key: "extension_script" } });
+    const script = pendingScript?.value || null;
+
+    res.json({ queue, total: results.length, recentlySearched: recentSet.size, script });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
