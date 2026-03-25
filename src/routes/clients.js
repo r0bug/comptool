@@ -94,4 +94,31 @@ router.post("/recover", async (req, res) => {
   }
 });
 
+// Recover API key by machine ID — if this machine was previously registered
+router.post("/recover-machine", async (req, res) => {
+  try {
+    const { machineId } = req.body;
+    if (!machineId) return res.json({ apiKey: null });
+
+    // Find machine record
+    const machine = await prisma.machine.findFirst({
+      where: { machineId },
+      include: { apiKey: { include: { client: true } } },
+      orderBy: { lastSeen: "desc" },
+    });
+
+    if (!machine || !machine.apiKey?.isActive || !machine.apiKey?.client?.isActive) {
+      return res.json({ apiKey: null });
+    }
+
+    res.json({
+      apiKey: machine.apiKey.key,
+      clientName: machine.apiKey.client.name,
+      message: "Key recovered from previous session",
+    });
+  } catch (err) {
+    res.json({ apiKey: null });
+  }
+});
+
 module.exports = router;

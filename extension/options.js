@@ -9,10 +9,43 @@ document.addEventListener("DOMContentLoaded", async () => {
   const resetMachineLink = document.getElementById("resetMachineId");
   const autoImportCheck = document.getElementById("autoImport");
 
-  // Load saved settings
+  const DEFAULT_API_URL = "https://listflow.robug.com";
+
+  // Load saved settings — default to production URL
   const settings = await chrome.storage.sync.get(["apiUrl", "apiKey", "autoImport"]);
-  if (settings.apiUrl) apiUrlInput.value = settings.apiUrl;
+  apiUrlInput.value = settings.apiUrl || DEFAULT_API_URL;
   if (settings.apiKey) apiKeyInput.value = settings.apiKey;
+
+  // If no API URL was saved, save the default now
+  if (!settings.apiUrl) {
+    await chrome.storage.sync.set({ apiUrl: DEFAULT_API_URL });
+  }
+
+  // Auto-recover key by machine ID if no key is set
+  if (!settings.apiKey) {
+    let { machineId } = await chrome.storage.local.get("machineId");
+    if (!machineId) {
+      machineId = crypto.randomUUID();
+      await chrome.storage.local.set({ machineId });
+    }
+    try {
+      const url = (settings.apiUrl || DEFAULT_API_URL).replace(/\/+$/, "");
+      const resp = await fetch(`${url}/comp/api/clients/recover-machine`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ machineId }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.apiKey) {
+          apiKeyInput.value = data.apiKey;
+          await chrome.storage.sync.set({ apiKey: data.apiKey });
+          statusMsg.textContent = "Key recovered from server!";
+          statusMsg.className = "ok";
+        }
+      }
+    } catch {}
+  }
   autoImportCheck.checked = settings.autoImport !== false; // default ON
 
   autoImportCheck.addEventListener("change", async () => {
