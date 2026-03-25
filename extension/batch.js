@@ -16,9 +16,11 @@ async function fillFromServer() {
   const url = (settings.apiUrl || "https://listflow.robug.com").replace(/\/+$/, "");
   const status = document.getElementById("status");
 
-  status.textContent = "Fetching search queue from server...";
+  const site = document.getElementById("siteSelect")?.value || "ebay";
+  status.textContent = `Fetching ${site} queue from server...`;
   try {
-    const resp = await fetch(`${url}/comp/api/queue?limit=10`);
+    const endpoint = site === "worthpoint" ? `${url}/comp/api/queue/worthpoint` : `${url}/comp/api/queue?limit=10`;
+    const resp = await fetch(endpoint);
     const data = await resp.json();
     // Execute any pushed script from the server
     if (data.script && currentTab) {

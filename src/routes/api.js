@@ -135,6 +135,36 @@ router.get("/queue", async (req, res) => {
   }
 });
 
+// WorthPoint search queue — pulls from stored keyword list
+router.get("/queue/worthpoint", async (req, res) => {
+  try {
+    const prisma = require("../config/database");
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Get the stored WP keyword list
+    const setting = await prisma.setting.findUnique({ where: { key: "worthpoint_queue" } });
+    if (!setting?.value) {
+      return res.json({ queue: [], total: 0 });
+    }
+
+    const allKeywords = setting.value.split("\n").map((k) => k.trim()).filter(Boolean);
+
+    // Check which ones were recently searched (source = worthpoint)
+    const recent = await prisma.search.findMany({
+      where: { source: "worthpoint", createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      select: { keyword: true },
+      distinct: ["keyword"],
+    });
+    const recentSet = new Set(recent.map((r) => r.keyword.toLowerCase()));
+
+    const queue = allKeywords.filter((kw) => !recentSet.has(kw.toLowerCase())).slice(0, limit);
+
+    res.json({ queue, total: allKeywords.length, remaining: queue.length, recentlySearched: recentSet.size });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.use("/admin", require("./admin"));
 router.use("/clients", require("./clients"));
 router.use("/data", require("./dataApi"));
