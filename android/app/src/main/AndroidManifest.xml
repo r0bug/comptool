@@ -7,7 +7,7 @@
     <application
         android:label="CompTool Capture"
         android:icon="@android:drawable/ic_menu_search"
-        android:theme="@android:style/Theme.Material.Light.DarkActionBar">
+        android:theme="@android:style/Theme.Material.NoActionBar">
 
         <!-- Main activity for settings -->
         <activity
