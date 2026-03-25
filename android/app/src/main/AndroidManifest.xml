@@ -7,13 +7,15 @@
     <application
         android:label="CompTool Capture"
         android:icon="@android:drawable/ic_menu_search"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
 
         <!-- Main activity for settings -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="CompTool Capture">
+            android:label="CompTool Capture"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
