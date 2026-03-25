@@ -78,6 +78,7 @@ router.use("/ingest", requireApiKey, require("./ingest"));
 router.use("/images", require("./images"));
 router.use("/admin", require("./admin"));
 router.use("/clients", require("./clients"));
+router.use("/tasks", require("./tasks"));
 router.use("/data", require("./dataApi"));
 router.use("/scrape-url", require("./scrapeUrl"));
 

@@ -10,13 +10,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   const autoImportCheck = document.getElementById("autoImport");
 
   // Load saved settings
-  const settings = await chrome.storage.sync.get(["apiUrl", "apiKey", "autoImport"]);
+  const taskPollingCheck = document.getElementById("taskPolling");
+
+  const settings = await chrome.storage.sync.get(["apiUrl", "apiKey", "autoImport", "taskPolling"]);
   if (settings.apiUrl) apiUrlInput.value = settings.apiUrl;
   if (settings.apiKey) apiKeyInput.value = settings.apiKey;
   autoImportCheck.checked = settings.autoImport !== false; // default ON
+  taskPollingCheck.checked = settings.taskPolling !== false; // default ON
 
   autoImportCheck.addEventListener("change", async () => {
     await chrome.storage.sync.set({ autoImport: autoImportCheck.checked });
+  });
+
+  taskPollingCheck.addEventListener("change", async () => {
+    await chrome.storage.sync.set({ taskPolling: taskPollingCheck.checked });
   });
 
   // Load or generate machine ID

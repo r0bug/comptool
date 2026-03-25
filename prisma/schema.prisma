@@ -161,3 +161,39 @@ model SearchComp {
 
   @@id([searchId, compId])
 }
+
+// ─── Task Queue (2-way extension communication) ────────
+
+model Task {
+  id              String    @id @default(uuid())
+  clientId        String    @default("default")
+
+  // Task definition
+  type            String                          // scrape_sold, scrape_worthpoint, navigate, custom
+  status          String    @default("pending")   // pending, claimed, running, done, failed, cancelled
+  priority        Int       @default(0)           // higher = more urgent
+
+  // What to do
+  payload         Json                            // { url, action, params, instructions }
+
+  // Who claimed it
+  machineId       String?
+  claimedAt       DateTime?
+
+  // Result
+  result          Json?
+  errorMessage    String?
+  completedAt     DateTime?
+
+  // Retry / TTL
+  maxRetries      Int       @default(2)
+  retryCount      Int       @default(0)
+  expiresAt       DateTime?                       // auto-cancel if unclaimed by this time
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId, status])
+  @@index([status, priority])
+  @@index([machineId])
+}
