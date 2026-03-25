@@ -57,6 +57,7 @@ async function startBatch() {
   if (keywords.length === 0) return;
 
   const delay = parseInt(document.getElementById("delay").value) || 8;
+  const site = document.getElementById("siteSelect")?.value || "ebay";
   autoLoop = document.getElementById("autoLoopCheck")?.checked || false;
   running = true;
 
@@ -75,7 +76,9 @@ async function startBatch() {
     status.textContent = `[${i + 1}/${keywords.length}] Searching: ${kw}...`;
 
     // Navigate to eBay sold search
-    const url = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(kw)}&_sacat=0&LH_Sold=1&LH_Complete=1&_ipg=240`;
+    const url = site === "worthpoint"
+      ? `https://www.worthpoint.com/inventory/search?query=${encodeURIComponent(kw)}&max=200&sort=SaleDate&noGreyList=true&img=true&saleDate=ALL_TIME`
+      : `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(kw)}&_sacat=0&LH_Sold=1&LH_Complete=1&_ipg=240`;
 
     // Open or reuse tab
     if (!currentTab) {
@@ -181,8 +184,28 @@ function checkForNextPage(tabId) {
   return chrome.scripting.executeScript({
     target: { tabId },
     func: () => {
-      const next = document.querySelector('a.pagination__next, [aria-label="Next page"], a[href*="_pgn="]');
-      return !!next && !next.classList.contains("pagination__next--disabled") && !next.hasAttribute("aria-disabled");
+      // eBay pagination
+      const ebayNext = document.querySelector('a.pagination__next, [aria-label="Next page"], a[href*="_pgn="]');
+      if (ebayNext && !ebayNext.classList.contains("pagination__next--disabled") && !ebayNext.hasAttribute("aria-disabled")) return true;
+      // WorthPoint pagination — look for "Next" or "›" link
+      const wpNext = document.querySelector('.pagination a.next, .pagination li:last-child a, a[href*="offset="]');
+      if (wpNext) {
+        const allPages = document.querySelectorAll('.pagination a, .pagination li a');
+        const current = document.querySelector('.pagination .active, .pagination .current, .pagination li.active');
+        if (current) {
+          const nextSibling = current.closest('li')?.nextElementSibling?.querySelector('a');
+          if (nextSibling && nextSibling.href) return true;
+        }
+        // Fallback: check if there's a link with a higher offset than current
+        const url = new URL(window.location.href);
+        const curOffset = parseInt(url.searchParams.get("offset") || "0");
+        for (const a of allPages) {
+          const href = a.href || "";
+          const m = href.match(/offset=(\d+)/);
+          if (m && parseInt(m[1]) > curOffset) return true;
+        }
+      }
+      return false;
     },
   }).then((r) => r?.[0]?.result || false).catch(() => false);
 }
@@ -191,8 +214,21 @@ function clickNextPage(tabId) {
   return chrome.scripting.executeScript({
     target: { tabId },
     func: () => {
-      const next = document.querySelector('a.pagination__next, [aria-label="Next page"]');
-      if (next) next.click();
+      // eBay
+      const ebayNext = document.querySelector('a.pagination__next, [aria-label="Next page"]');
+      if (ebayNext) { ebayNext.click(); return; }
+      // WorthPoint — find next page link
+      const current = document.querySelector('.pagination .active, .pagination .current, .pagination li.active');
+      if (current) {
+        const nextSibling = current.closest('li')?.nextElementSibling?.querySelector('a');
+        if (nextSibling) { nextSibling.click(); return; }
+      }
+      // Fallback: increment offset in URL
+      const url = new URL(window.location.href);
+      const curOffset = parseInt(url.searchParams.get("offset") || "0");
+      const pageSize = parseInt(url.searchParams.get("max") || "200");
+      url.searchParams.set("offset", curOffset + pageSize);
+      window.location.href = url.toString();
     },
   });
 }
