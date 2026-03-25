@@ -107,19 +107,9 @@ function scrollPage(tabId) {
   return chrome.scripting.executeScript({
     target: { tabId },
     func: () => {
-      return new Promise((resolve) => {
-        let pos = 0;
-        const step = () => {
-          pos += 300;
-          window.scrollTo({ top: pos, behavior: "smooth" });
-          if (pos < document.body.scrollHeight) {
-            setTimeout(step, 200);
-          } else {
-            resolve();
-          }
-        };
-        step();
-      });
+      // Press End key to jump to bottom — faster and triggers all lazy-loading
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "End", code: "End", bubbles: true }));
+      window.scrollTo(0, document.body.scrollHeight);
     },
   });
 }
