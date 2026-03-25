@@ -30,6 +30,30 @@
 
 ---
 
+### Mobile Capture R&D
+**Problem:** The eBay app on Android is a walled garden — no extensions, no share URLs, no accessible DOM, cert-pinned HTTPS. Every standard approach hits a wall.
+
+**Explored and failed:**
+- Chrome extensions on Android (Kiwi/Lemur won't sideload)
+- Bookmarklets (Android Chrome strips `javascript:`)
+- Android Accessibility Service (eBay uses WebView, content not exposed)
+- eBay Finding API `findCompletedItems` (returns garbage data)
+- Server-side scraping (bot detection)
+
+**Promising avenues to explore:**
+
+1. **VirtualApp / VirtualXposed container** — Run eBay inside a virtualized app container that hooks the WebView or network layer. No root required. The same framework that "dual app" cloners use (Parallel Space, Dual Space, Island). Could intercept sold listing data before it reaches the screen. R&D effort: weeks.
+
+2. **Enterprise MDM capabilities** — MDM platforms (Hexnode, Jamf, Microsoft Intune) sit between apps and the OS with deep system access: app traffic inspection, managed app configs, per-app VPN, kiosk mode with custom launchers. Research whether MDM APIs expose app WebView content or network traffic that consumer Android APIs don't. eBay may have intentionally blocked consumer-level access while allowing enterprise inspection.
+
+3. **Android emulator on server** — Run Android emulator on list.robug.com, install eBay app, root the emulator (trivial), intercept traffic with Frida + mitmproxy. Zero risk to physical phone. Can be automated. Effort: medium.
+
+4. **scrcpy + real-time OCR** — Mirror phone screen to desktop, OCR the screen content continuously. Fragile but functional. Gets titles + prices, enricher backfills the rest.
+
+5. **Desktop mobile emulation** (WORKING) — Chrome DevTools device toolbar + extension. Not truly mobile but captures mobile eBay layout. Already proven with 200 comps.
+
+---
+
 ## Medium Priority
 
 ### Chrome Extension Enhancements
