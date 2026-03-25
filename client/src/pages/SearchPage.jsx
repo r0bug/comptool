@@ -78,15 +78,26 @@ export default function SearchPage() {
       {/* Extension install */}
       <div className="ct-section ct-install">
         <h2>Quick Setup Guide</h2>
+        <h4 style={{ color: "#aaa", margin: "0 0 8px" }}>Desktop (Chrome, Edge, Brave)</h4>
         <ol className="ct-install-list">
           <li><Link to="/register" style={link}>Register</Link> for your free API key</li>
-          <li><a href="/comp/extension/" style={link}>Download the extension</a></li>
+          <li><a href="/comp/extension/download" style={link}>Download the extension</a> and unzip</li>
           <li>Open <code style={code}>chrome://extensions/</code>, enable <strong>Developer mode</strong></li>
           <li>Click <strong>Load unpacked</strong> and select the extension folder</li>
           <li>Click the CompTool extension icon → <strong>Settings</strong></li>
           <li>Set API URL: <code style={code}>https://listflow.robug.com</code></li>
           <li>Paste your API key and save</li>
           <li>Go to eBay, search with <strong>Sold Items</strong> filter — comps save automatically!</li>
+        </ol>
+
+        <h4 style={{ color: "#aaa", margin: "16px 0 8px" }}>Mobile (Android)</h4>
+        <ol className="ct-install-list">
+          <li>Install <a href="https://github.com/user/cromite" target="_blank" rel="noreferrer" style={link}>Cromite Browser</a> — a Chromium fork that supports extensions on Android</li>
+          <li><a href="/comp/extension/download" style={link}>Download the extension zip</a> in Cromite</li>
+          <li>Open <code style={code}>chrome://extensions/</code> in Cromite</li>
+          <li>Enable <strong>Developer mode</strong>, load the extension</li>
+          <li>Configure API URL and key in extension settings</li>
+          <li>Browse eBay sold listings — comps capture as you scroll</li>
         </ol>
       </div>
 
