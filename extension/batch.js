@@ -1,13 +1,38 @@
 let running = false;
 let currentTab = null;
+let autoLoop = false;
 
 document.getElementById("startBtn").addEventListener("click", startBatch);
-document.getElementById("stopBtn").addEventListener("click", () => { running = false; });
+document.getElementById("stopBtn").addEventListener("click", () => { running = false; autoLoop = false; });
 document.getElementById("clearBtn").addEventListener("click", () => {
   document.getElementById("keywords").value = "";
   document.getElementById("status").textContent = "Ready.";
   document.getElementById("progressBar").style.width = "0%";
 });
+document.getElementById("fillBtn").addEventListener("click", fillFromServer);
+
+async function fillFromServer() {
+  const settings = await chrome.storage.sync.get(["apiUrl"]);
+  const url = (settings.apiUrl || "https://listflow.robug.com").replace(/\/+$/, "");
+  const status = document.getElementById("status");
+
+  status.textContent = "Fetching search queue from server...";
+  try {
+    const resp = await fetch(`${url}/comp/api/queue?limit=10`);
+    const data = await resp.json();
+    if (data.queue && data.queue.length > 0) {
+      const textarea = document.getElementById("keywords");
+      const existing = textarea.value.trim();
+      const newTerms = data.queue.join("\n");
+      textarea.value = existing ? existing + "\n" + newTerms : newTerms;
+      status.textContent = `Added ${data.queue.length} keywords from server (${data.total} available, ${data.recentlySearched} searched today)`;
+    } else {
+      status.textContent = "Server has no new keywords to suggest.";
+    }
+  } catch (err) {
+    status.textContent = "Error fetching queue: " + err.message;
+  }
+}
 
 async function startBatch() {
   const text = document.getElementById("keywords").value.trim();
@@ -17,6 +42,7 @@ async function startBatch() {
   if (keywords.length === 0) return;
 
   const delay = parseInt(document.getElementById("delay").value) || 8;
+  autoLoop = document.getElementById("autoLoopCheck")?.checked || false;
   running = true;
 
   document.getElementById("startBtn").disabled = true;
@@ -73,9 +99,31 @@ async function startBatch() {
   }
 
   bar.style.width = "100%";
-  status.textContent = running
-    ? `Complete! Processed ${keywords.length} keywords.`
-    : `Stopped after ${keywords.indexOf(keywords.find((_, i) => !running)) || "?"} keywords.`;
+
+  if (!running) {
+    status.textContent = "Stopped.";
+    running = false;
+    document.getElementById("startBtn").disabled = false;
+    document.getElementById("stopBtn").disabled = true;
+    return;
+  }
+
+  // Auto-loop: ask server for more keywords
+  if (autoLoop) {
+    status.textContent = `Batch done (${keywords.length} keywords). Asking server for more...`;
+    await sleep(3000);
+    await fillFromServer();
+    const newText = document.getElementById("keywords").value.trim();
+    if (newText) {
+      status.textContent = "Starting next batch from server...";
+      await sleep(2000);
+      await startBatch();
+      return;
+    }
+    status.textContent = "Server has no more keywords. Auto-loop complete.";
+  } else {
+    status.textContent = `Complete! Processed ${keywords.length} keywords.`;
+  }
 
   running = false;
   document.getElementById("startBtn").disabled = false;
