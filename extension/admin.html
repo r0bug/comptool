@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>CompTool Admin</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f6f8; color: #1a1a2e; min-width: 720px; }
+
+    /* ─── Header ─── */
+    .header { background: #1a1a2e; color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .header h1 { font-size: 18px; font-weight: 700; }
+    .header .subtitle { font-size: 12px; color: #8888aa; margin-top: 2px; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .poll-status { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .poll-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .poll-dot.active { background: #00c853; }
+    .poll-dot.inactive { background: #ff5252; }
+    .btn-sm { padding: 4px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; background: transparent; color: white; font-size: 12px; cursor: pointer; }
+    .btn-sm:hover { background: rgba(255,255,255,0.1); }
+
+    /* ─── Layout ─── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+
+    /* ─── Cards ─── */
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 8px; }
+    .card .value { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+    .card .sub { font-size: 12px; color: #888; margin-top: 4px; }
+
+    /* ─── Sections ─── */
+    .section { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 24px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-header h2 { font-size: 16px; font-weight: 700; }
+
+    /* ─── SaaS Metadata ─── */
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .meta-item { padding: 12px; background: #f8f9fb; border-radius: 6px; }
+    .meta-item label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; display: block; margin-bottom: 4px; }
+    .meta-item .val { font-size: 14px; font-weight: 600; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-free { background: #e8f5e9; color: #2e7d32; }
+    .badge-pro { background: #e3f2fd; color: #1565c0; }
+    .badge-enterprise { background: #f3e5f5; color: #7b1fa2; }
+    .badge-active { background: #e8f5e9; color: #2e7d32; }
+    .badge-suspended { background: #fff3e0; color: #e65100; }
+
+    /* ─── Table ─── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 8px 12px; border-bottom: 2px solid #eee; font-weight: 600; color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:hover td { background: #f8f9fb; }
+    .status-pending { color: #ff9800; }
+    .status-claimed { color: #2196f3; }
+    .status-running { color: #9c27b0; }
+    .status-done { color: #4caf50; }
+    .status-failed { color: #f44336; }
+    .status-cancelled { color: #9e9e9e; }
+
+    /* ─── Create Task Form ─── */
+    .form-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-end; }
+    .form-group { flex: 1; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #555; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit;
+    }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary { background: #3665f3; color: white; }
+    .btn-primary:hover { background: #2a4fcf; }
+    .btn-danger { background: #f44336; color: white; }
+    .btn-danger:hover { background: #d32f2f; }
+    .btn-ghost { background: transparent; border: 1px solid #ddd; color: #555; }
+    .btn-ghost:hover { background: #f5f5f5; }
+
+    /* ─── Machines ─── */
+    .machine-list { display: flex; gap: 8px; flex-wrap: wrap; }
+    .machine-tag { padding: 4px 10px; background: #f0f0f5; border-radius: 12px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .machine-dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; }
+    .machine-dot.recent { background: #00c853; }
+
+    /* ─── Tabs ─── */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #eee; margin-bottom: 16px; }
+    .tab { padding: 8px 16px; font-size: 13px; font-weight: 600; color: #888; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+    .tab.active { color: #3665f3; border-bottom-color: #3665f3; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ─── Auth overlay ─── */
+    .auth-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(26,26,46,0.95); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .auth-box { background: white; padding: 32px; border-radius: 12px; width: 360px; }
+    .auth-box h2 { margin-bottom: 16px; }
+    .auth-box input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
+    .hidden { display: none !important; }
+
+    .empty-state { text-align: center; padding: 40px; color: #888; }
+    .empty-state p { font-size: 14px; }
+  </style>
+</head>
+<body>
+
+  <!-- Auth overlay -->
+  <div class="auth-overlay" id="authOverlay">
+    <div class="auth-box">
+      <h2>Admin Access</h2>
+      <p style="font-size:13px;color:#888;margin-bottom:16px;">Enter your admin password to manage CompTool.</p>
+      <input type="password" id="adminPassword" placeholder="Admin password">
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" id="authBtn" style="flex:1;">Authenticate</button>
+      </div>
+      <p id="authError" style="color:#f44336;font-size:12px;margin-top:8px;" class="hidden"></p>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>CompTool Admin</h1>
+      <div class="subtitle">Task Queue &amp; SaaS Management</div>
+    </div>
+    <div class="header-right">
+      <div class="poll-status">
+        <span class="poll-dot" id="pollDot"></span>
+        <span id="pollLabel">Checking...</span>
+      </div>
+      <button class="btn-sm" id="togglePollBtn">Toggle Polling</button>
+      <button class="btn-sm" id="pollNowBtn">Poll Now</button>
+      <button class="btn-sm" id="refreshBtn">Refresh</button>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- Stat cards -->
+    <div class="grid" id="statsGrid">
+      <div class="card"><h3>Pending</h3><div class="value" id="statPending">-</div></div>
+      <div class="card"><h3>Running</h3><div class="value" id="statRunning">-</div></div>
+      <div class="card"><h3>Completed</h3><div class="value" id="statDone">-</div></div>
+      <div class="card"><h3>Failed</h3><div class="value" id="statFailed">-</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="tasks">Task Queue</div>
+      <div class="tab" data-tab="create">Create Task</div>
+      <div class="tab" data-tab="account">Account &amp; Plan</div>
+      <div class="tab" data-tab="machines">Machines</div>
+    </div>
+
+    <!-- Task Queue tab -->
+    <div class="tab-content active" id="tab-tasks">
+      <div class="section">
+        <div class="section-header">
+          <h2>Task Queue</h2>
+          <div style="display:flex;gap:8px;">
+            <select id="taskFilter" style="padding:4px 8px;border:1px solid #ddd;border-radius:4px;font-size:12px;">
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="claimed">Claimed</option>
+              <option value="running">Running</option>
+              <option value="done">Done</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Type</th><th>Status</th><th>Machine</th><th>Created</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="taskTableBody">
+            <tr><td colspan="6" class="empty-state"><p>Loading tasks...</p></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Create Task tab -->
+    <div class="tab-content" id="tab-create">
+      <div class="section">
+        <h2 style="margin-bottom:16px;">Create Task</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Task Type</label>
+            <select id="newTaskType">
+              <option value="scrape_sold">Scrape eBay Sold</option>
+              <option value="scrape_page">Scrape Page</option>
+              <option value="navigate">Navigate to URL</option>
+              <option value="inject_prompt">Inject Prompt (Claude Chrome)</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="newTaskPriority">
+              <option value="0">Normal (0)</option>
+              <option value="5">High (5)</option>
+              <option value="10">Urgent (10)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic payload fields -->
+        <div id="payloadFields">
+          <div class="form-row" id="fieldKeyword">
+            <div class="form-group">
+              <label>Keyword</label>
+              <input type="text" id="payloadKeyword" placeholder="e.g. vintage seiko watch">
+            </div>
+          </div>
+          <div class="form-row hidden" id="fieldUrl">
+            <div class="form-group">
+              <label>URL</label>
+              <input type="text" id="payloadUrl" placeholder="https://...">
+            </div>
+          </div>
+          <div class="form-row hidden" id="fieldSelectors">
+            <div class="form-group">
+              <label>CSS Selectors (JSON)</label>
+              <input type="text" id="payloadSelectors" placeholder='{"price": ".item-price", "title": "h1"}'>
+            </div>
+          </div>
+          <div class="form-row hidden" id="fieldInstructions">
+            <div class="form-group">
+              <label>Instructions for Claude Chrome</label>
+              <textarea id="payloadInstructions" placeholder="Describe what Claude should do on this page..."></textarea>
+            </div>
+          </div>
+          <div class="form-row hidden" id="fieldCustom">
+            <div class="form-group">
+              <label>Custom Payload (JSON)</label>
+              <textarea id="payloadCustom" placeholder='{"action": "...", "params": {...}}'></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 auto;">
+            <button class="btn btn-primary" id="createTaskBtn">Create Task</button>
+          </div>
+          <div class="form-group" style="flex:0 0 auto;">
+            <span id="createStatus" style="font-size:13px;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Account & Plan tab -->
+    <div class="tab-content" id="tab-account">
+      <div class="section">
+        <h2 style="margin-bottom:16px;">Account &amp; Subscription</h2>
+        <div class="meta-grid" id="accountMeta">
+          <div class="meta-item"><label>Client Name</label><div class="val" id="metaName">-</div></div>
+          <div class="meta-item"><label>Email</label><div class="val" id="metaEmail">-</div></div>
+          <div class="meta-item"><label>Company</label><div class="val" id="metaCompany">-</div></div>
+          <div class="meta-item"><label>Client ID</label><div class="val" id="metaClientId" style="font-size:11px;word-break:break-all;">-</div></div>
+          <div class="meta-item"><label>Plan Tier</label><div class="val" id="metaPlan">-</div></div>
+          <div class="meta-item"><label>Billing Status</label><div class="val" id="metaBilling">-</div></div>
+          <div class="meta-item"><label>Monthly Usage Limit</label><div class="val" id="metaUsageLimit">-</div></div>
+          <div class="meta-item"><label>Account Created</label><div class="val" id="metaCreated">-</div></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 style="margin-bottom:16px;">API Keys</h2>
+        <table>
+          <thead>
+            <tr><th>Label</th><th>Key</th><th>Status</th><th>Usage</th><th>Last Used</th></tr>
+          </thead>
+          <tbody id="apiKeysBody">
+            <tr><td colspan="5" class="empty-state"><p>Loading...</p></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section">
+        <h2 style="margin-bottom:16px;">Usage Statistics</h2>
+        <div class="meta-grid" id="usageMeta">
+          <div class="meta-item"><label>Total Searches</label><div class="val" id="metaSearches">-</div></div>
+          <div class="meta-item"><label>Total Comps</label><div class="val" id="metaComps">-</div></div>
+          <div class="meta-item"><label>Tasks Executed</label><div class="val" id="metaTasks">-</div></div>
+          <div class="meta-item"><label>Active Machines</label><div class="val" id="metaMachines">-</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Machines tab -->
+    <div class="tab-content" id="tab-machines">
+      <div class="section">
+        <h2 style="margin-bottom:16px;">Connected Machines</h2>
+        <table>
+          <thead>
+            <tr><th>Machine ID</th><th>Browser</th><th>API Key</th><th>First Seen</th><th>Last Seen</th><th>Requests</th></tr>
+          </thead>
+          <tbody id="machinesBody">
+            <tr><td colspan="6" class="empty-state"><p>Loading...</p></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
