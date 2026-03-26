@@ -306,46 +306,61 @@ async function getComp(id) {
 
 /**
  * Get aggregate stats for all comps matching a keyword.
+ * Uses PostgreSQL aggregate functions — no data loaded into Node.
  */
 async function getStats(keyword) {
-  const comps = await prisma.soldComp.findMany({
-    where: { title: { contains: keyword, mode: "insensitive" } },
-    select: { soldPrice: true, totalPrice: true },
-  });
+  try {
+    const searchTerm = `%${keyword.replace(/%/g, "\\%")}%`;
+    const result = await prisma.$queryRawUnsafe(`
+      SELECT
+        COUNT(*)::int as count,
+        ROUND(AVG(COALESCE("totalPrice", "soldPrice"))::numeric, 2)::float as avg,
+        MIN(COALESCE("totalPrice", "soldPrice"))::float as min,
+        MAX(COALESCE("totalPrice", "soldPrice"))::float as max,
+        ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY COALESCE("totalPrice", "soldPrice")))::numeric, 2)::float as median,
+        ROUND((PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY COALESCE("totalPrice", "soldPrice")))::numeric, 2)::float as p25,
+        ROUND((PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY COALESCE("totalPrice", "soldPrice")))::numeric, 2)::float as p75
+      FROM comptool."SoldComp"
+      WHERE title ILIKE $1
+    `, searchTerm);
 
-  if (comps.length === 0) {
+    const row = result[0];
+    if (!row || row.count === 0) {
+      return { avg: 0, median: 0, min: 0, max: 0, count: 0, p25: 0, p75: 0 };
+    }
+
     return {
-      avg: 0,
-      median: 0,
-      min: 0,
-      max: 0,
-      count: 0,
-      p25: 0,
-      p75: 0,
+      avg: row.avg || 0,
+      median: row.median || 0,
+      min: row.min || 0,
+      max: row.max || 0,
+      count: row.count,
+      p25: row.p25 || 0,
+      p75: row.p75 || 0,
+    };
+  } catch (err) {
+    // Fallback to JS-based stats if raw query fails
+    console.warn("SQL stats failed, falling back:", err.message);
+    const comps = await prisma.soldComp.findMany({
+      where: { title: { contains: keyword, mode: "insensitive" } },
+      select: { soldPrice: true, totalPrice: true },
+    });
+    if (comps.length === 0) return { avg: 0, median: 0, min: 0, max: 0, count: 0, p25: 0, p75: 0 };
+    const prices = comps.map((c) => c.totalPrice || c.soldPrice).sort((a, b) => a - b);
+    const count = prices.length;
+    const avg = prices.reduce((a, b) => a + b, 0) / count;
+    const mid = Math.floor(count / 2);
+    const median = count % 2 !== 0 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
+    return {
+      avg: Math.round(avg * 100) / 100,
+      median: Math.round(median * 100) / 100,
+      min: prices[0],
+      max: prices[count - 1],
+      count,
+      p25: prices[Math.max(0, Math.ceil(count * 0.25) - 1)],
+      p75: prices[Math.max(0, Math.ceil(count * 0.75) - 1)],
     };
   }
-
-  const prices = comps
-    .map((c) => c.totalPrice || c.soldPrice)
-    .sort((a, b) => a - b);
-  const count = prices.length;
-  const avg = prices.reduce((a, b) => a + b, 0) / count;
-  const mid = Math.floor(count / 2);
-  const median =
-    count % 2 !== 0 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
-
-  const p25Index = Math.max(0, Math.ceil(count * 0.25) - 1);
-  const p75Index = Math.max(0, Math.ceil(count * 0.75) - 1);
-
-  return {
-    avg: Math.round(avg * 100) / 100,
-    median: Math.round(median * 100) / 100,
-    min: prices[0],
-    max: prices[count - 1],
-    count,
-    p25: prices[p25Index],
-    p75: prices[p75Index],
-  };
 }
 
 module.exports = {

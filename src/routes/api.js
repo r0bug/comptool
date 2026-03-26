@@ -89,11 +89,12 @@ router.use("/comps", require("./comps"));
 router.use("/browser", require("./browser"));
 router.use("/ingest", requireApiKey, require("./ingest"));
 router.use("/images", require("./images"));
-// Search queue — server tells extensions what to search next
+// Search queue — server tells extensions what to search next (cached 10 min)
 router.get("/queue", async (req, res) => {
   try {
-    const prisma = require("../config/database");
     const limit = parseInt(req.query.limit) || 5;
+    const result = await cache.get(`queue:${limit}`, 600000, async () => {
+    const prisma = require("../config/database");
 
     // Strategy: find common title words among uncategorized comps
     // that would benefit most from a re-search
@@ -131,7 +132,9 @@ router.get("/queue", async (req, res) => {
     const pendingScript = await prisma.setting.findUnique({ where: { key: "extension_script" } });
     const script = pendingScript?.value || null;
 
-    res.json({ queue, total: results.length, recentlySearched: recentSet.size, script });
+    return { queue, total: results.length, recentlySearched: recentSet.size, script };
+    });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
