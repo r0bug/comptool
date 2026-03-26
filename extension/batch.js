@@ -104,7 +104,10 @@ async function startBatch() {
     while (running) {
       if (pageNum >= maxPages) { status.textContent = `[${i + 1}/${keywords.length}] ${kw} — hit ${maxPages} page limit`; break; }
       const hasNext = await checkForNextPage(currentTab);
-      if (!hasNext) break;
+      if (!hasNext) { status.textContent = `[${i + 1}/${keywords.length}] ${kw} — no more pages`; break; }
+
+      // Get URL before clicking next
+      const beforeUrl = await chrome.tabs.get(currentTab).then(t => t.url).catch(() => "");
 
       pageNum++;
       status.textContent = `[${i + 1}/${keywords.length}] ${kw} — page ${pageNum}/${maxPages}...`;
@@ -112,6 +115,11 @@ async function startBatch() {
       await clickNextPage(currentTab);
       await waitForTabLoad(currentTab, 15000);
       await sleep(delay * 1000);
+
+      // Check if URL actually changed — if not, we're stuck
+      const afterUrl = await chrome.tabs.get(currentTab).then(t => t.url).catch(() => "");
+      if (afterUrl === beforeUrl) { status.textContent = `[${i + 1}/${keywords.length}] ${kw} — page didn't change, moving on`; break; }
+
       await scrollPage(currentTab);
       await sleep(3000);
     }
@@ -188,9 +196,16 @@ function checkForNextPage(tabId) {
   return chrome.scripting.executeScript({
     target: { tabId },
     func: () => {
-      // eBay pagination
-      const ebayNext = document.querySelector('a.pagination__next, [aria-label="Next page"], a[href*="_pgn="]');
-      if (ebayNext && !ebayNext.classList.contains("pagination__next--disabled") && !ebayNext.hasAttribute("aria-disabled")) return true;
+      // eBay pagination — check specifically for an enabled "next" button
+      const ebayNext = document.querySelector('a.pagination__next, [aria-label="Next page"]');
+      if (ebayNext && !ebayNext.classList.contains("pagination__next--disabled") && !ebayNext.hasAttribute("aria-disabled") && ebayNext.href) return true;
+      // Also check for numbered page links — is there a page number higher than current?
+      const currentPage = document.querySelector('.pagination__items .pagination__item--current, .pagination .active');
+      if (currentPage) {
+        const curNum = parseInt(currentPage.textContent);
+        const nextLink = currentPage.closest('li')?.nextElementSibling?.querySelector('a');
+        if (nextLink && parseInt(nextLink.textContent) > curNum) return true;
+      }
       // WorthPoint pagination — look for "Next" or "›" link
       const wpNext = document.querySelector('.pagination a.next, .pagination li:last-child a, a[href*="offset="]');
       if (wpNext) {
