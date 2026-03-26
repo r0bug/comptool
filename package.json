@@ -4,6 +4,7 @@
   "description": "A tool for pricing items for sale",
   "main": "src/index.js",
   "scripts": {
+    "merge": "node src/services/compMerger.js",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "client:dev": "cd client && npm run dev",
