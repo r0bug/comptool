@@ -96,7 +96,10 @@ export default function BrowsePage() {
     }
   }, [keyword, exclude, minPrice, maxPrice, condition, category, listingType, seller, dateFrom, dateTo, hasImage, richOnly, sortBy, sortDir, pageSize, page]);
 
-  useEffect(() => { fetchComps(); }, [fetchComps]);
+  useEffect(() => {
+    const timer = setTimeout(fetchComps, 300);
+    return () => clearTimeout(timer);
+  }, [fetchComps]);
 
   function applyAll(overrides = {}) {
     const { keyword: kw, exclude: ex } = buildSearchParams(searchRows);

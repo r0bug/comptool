@@ -10,7 +10,12 @@ export default function CompTiles({ comps, tileSize = 220, mobileCols = 4 }) {
     return <p style={{ color: "#666" }}>No results</p>;
   }
 
-  function getImgSrc(comp) {
+  function getThumbSrc(comp) {
+    if (comp.localImage) return `/comp/images/thumb/${comp.localImage}`;
+    return comp.imageUrl || null;
+  }
+
+  function getFullSrc(comp) {
     if (comp.localImage) return `/comp/images/${comp.localImage}`;
     return comp.imageUrl || null;
   }
@@ -30,13 +35,14 @@ export default function CompTiles({ comps, tileSize = 220, mobileCols = 4 }) {
       {ctxMenu && <CompContextMenu comp={ctxMenu.comp} x={ctxMenu.x} y={ctxMenu.y} onClose={() => setCtxMenu(null)} />}
       <div style={{ display: "grid", gridTemplateColumns: cols ? `repeat(${cols}, 1fr)` : `repeat(auto-fill, minmax(${tileSize}px, 1fr))`, gap }}>
         {comps.map((comp, i) => {
-          const src = getImgSrc(comp);
+          const thumb = getThumbSrc(comp);
+          const full = getFullSrc(comp);
           return (
             <Tile
               key={comp.id || comp.ebayItemId || i}
               comp={comp}
-              imgSrc={src}
-              onImageClick={() => src && setLightboxSrc(src)}
+              imgSrc={thumb}
+              onImageClick={() => full && setLightboxSrc(full)}
               onContextMenu={(e) => handleContextMenu(e, comp)}
               compact={isMobile && mobileCols >= 3}
               showInfo={!isMobile || mobileCols <= 2}

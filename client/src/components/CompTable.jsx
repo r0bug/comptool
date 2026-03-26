@@ -49,7 +49,12 @@ export default function CompTable({ comps, onSort }) {
     localStorage.setItem("comptool_columns", JSON.stringify(next));
   }
 
-  function getImgSrc(comp) {
+  function getThumbSrc(comp) {
+    if (comp.localImage) return `/comp/images/thumb/${comp.localImage}`;
+    return comp.imageUrl || null;
+  }
+
+  function getFullSrc(comp) {
     if (comp.localImage) return `/comp/images/${comp.localImage}`;
     return comp.imageUrl || null;
   }
@@ -109,7 +114,8 @@ export default function CompTable({ comps, onSort }) {
           </thead>
           <tbody>
             {comps.map((comp, i) => {
-              const src = getImgSrc(comp);
+              const src = getThumbSrc(comp);
+              const full = getFullSrc(comp);
               return (
                 <tr
                   key={comp.id || comp.ebayItemId || i}
@@ -118,7 +124,7 @@ export default function CompTable({ comps, onSort }) {
                 >
                   {columns.map((col) => (
                     <td key={col.key} style={col.key === "title" ? { ...cell, maxWidth: 300 } : cell}>
-                      {renderCell(col.key, comp, src, () => src && setLightboxSrc(src))}
+                      {renderCell(col.key, comp, src, () => full && setLightboxSrc(full))}
                     </td>
                   ))}
                 </tr>

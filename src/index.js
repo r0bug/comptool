@@ -11,7 +11,21 @@ app.use(cors());
 app.use(require("compression")());
 app.use(express.json({ limit: "5mb" }));
 
-// Cached images — 30-day browser cache, immutable (filenames are content-addressed)
+// Thumbnails — on-demand generation, 30-day cache
+const { getThumb, THUMB_DIR } = require("./services/thumbnailer");
+app.use("/comp/images/thumbs", express.static(THUMB_DIR, { maxAge: "30d", immutable: true }));
+app.get("/comp/images/thumb/:filename", async (req, res) => {
+  const thumbPath = await getThumb(req.params.filename);
+  if (thumbPath) {
+    res.set("Cache-Control", "public, max-age=2592000, immutable");
+    res.sendFile(thumbPath);
+  } else {
+    // Fallback to original
+    res.redirect(`/comp/images/${req.params.filename}`);
+  }
+});
+
+// Full-size images — 30-day browser cache, immutable
 app.use("/comp/images", express.static(path.join(__dirname, "../data/images"), {
   maxAge: "30d",
   immutable: true,
