@@ -81,7 +81,7 @@ async function startBatch() {
     // Navigate to eBay sold search
     const url = site === "worthpoint"
       ? `https://www.worthpoint.com/inventory/search?query=${encodeURIComponent(kw)}&max=200&sort=SaleDate&noGreyList=true&img=true&saleDate=ALL_TIME`
-      : `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(kw)}&_sacat=0&LH_Sold=1&LH_Complete=1&_ipg=240`;
+      : `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(kw)}&_sacat=0&LH_Sold=1&LH_Complete=1&_ipg=240&_sop=16`;
 
     // Open or reuse tab
     if (!currentTab) {
