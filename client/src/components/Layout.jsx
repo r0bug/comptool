@@ -9,7 +9,7 @@ export default function Layout() {
 
   useEffect(() => {
     apiGet("/stats").then(setStats).catch(() => {});
-  }, [location.pathname]);
+  }, []); // fetch once on mount, not every navigation
 
   // Close menu on navigation
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);

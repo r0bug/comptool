@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const requireApiKey = require("../middleware/apiKey");
+const cache = require("../services/cache");
 
 router.get("/health", (req, res) => {
   res.json({ status: "ok", service: "comptool" });
@@ -19,35 +20,36 @@ router.get("/extension/version", (req, res) => {
   }
 });
 
-// Global stats for footer
+// Global stats for footer — cached 5 minutes
 router.get("/stats", async (req, res) => {
   try {
-    const prisma = require("../config/database");
-    const fs = require("fs");
-    const path = require("path");
-    const imgDir = path.join(__dirname, "../../data/images");
+    const result = await cache.get("global_stats", 300000, async () => {
+      const prisma = require("../config/database");
+      const fs = require("fs");
+      const path = require("path");
+      const imgDir = path.join(__dirname, "../../data/images");
 
-    const [compCount, searchCount, cachedImages] = await Promise.all([
-      prisma.soldComp.count(),
-      prisma.search.count(),
-      prisma.soldComp.count({ where: { localImage: { not: null } } }),
-    ]);
+      const [compCount, searchCount, cachedImages] = await Promise.all([
+        prisma.soldComp.count(),
+        prisma.search.count(),
+        prisma.soldComp.count({ where: { localImage: { not: null } } }),
+      ]);
 
-    // Estimate storage from image count * avg size (faster than scanning disk)
-    let storageMb = 0;
-    try {
-      const files = fs.readdirSync(imgDir);
-      // Sample first 20 files for avg size
-      let sampleSize = 0;
-      const sample = files.slice(0, 20);
-      for (const f of sample) {
-        try { sampleSize += fs.statSync(path.join(imgDir, f)).size; } catch {}
-      }
-      const avgSize = sample.length > 0 ? sampleSize / sample.length : 0;
-      storageMb = Math.round((avgSize * files.length) / (1024 * 1024));
-    } catch {}
+      let storageMb = 0;
+      try {
+        const files = fs.readdirSync(imgDir);
+        let sampleSize = 0;
+        const sample = files.slice(0, 20);
+        for (const f of sample) {
+          try { sampleSize += fs.statSync(path.join(imgDir, f)).size; } catch {}
+        }
+        const avgSize = sample.length > 0 ? sampleSize / sample.length : 0;
+        storageMb = Math.round((avgSize * files.length) / (1024 * 1024));
+      } catch {}
 
-    res.json({ compCount, searchCount, cachedImages, storageMb });
+      return { compCount, searchCount, cachedImages, storageMb };
+    });
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

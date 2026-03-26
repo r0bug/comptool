@@ -119,6 +119,11 @@ model SoldComp {
   @@index([title])
   @@index([soldDate])
   @@index([soldPrice])
+  @@index([condition])
+  @@index([listingType])
+  @@index([category])
+  @@index([imageUrl])
+  @@index([shippingPrice])
 }
 
 model Search {

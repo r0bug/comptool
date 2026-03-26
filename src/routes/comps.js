@@ -1,12 +1,13 @@
 const router = require("express").Router();
 const compStore = require("../services/compStore");
+const cache = require("../services/cache");
 
 // Aggregate stats — must be before /:id to avoid conflict
 router.get("/stats", async (req, res) => {
   try {
     const { keyword } = req.query;
     if (!keyword) return res.status(400).json({ error: "keyword required" });
-    const stats = await compStore.getStats(keyword);
+    const stats = await cache.get(`stats:${keyword}`, 120000, () => compStore.getStats(keyword));
     res.json(stats);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -16,46 +17,45 @@ router.get("/stats", async (req, res) => {
 // Filter facet counts — shows impact of each filter option
 router.get("/facets", async (req, res) => {
   try {
-    const prisma = require("../config/database");
     const { keyword, exclude } = req.query;
+    const cacheKey = `facets:${keyword || ""}:${exclude || ""}`;
 
-    // Build base where clause (just keyword/exclude, not other filters)
-    const andConditions = [];
-    if (keyword) {
-      keyword.split(/\s+/).filter(Boolean).forEach((term) => {
-        andConditions.push({ title: { contains: term, mode: "insensitive" } });
-      });
-    }
-    if (exclude) {
-      exclude.split(/[,\s]+/).filter(Boolean).forEach((term) => {
-        andConditions.push({ NOT: { title: { contains: term, mode: "insensitive" } } });
-      });
-    }
-    const baseWhere = andConditions.length > 0 ? { AND: andConditions } : {};
+    const result = await cache.get(cacheKey, 120000, async () => {
+      const prisma = require("../config/database");
+      const andConditions = [];
+      if (keyword) {
+        keyword.split(/\s+/).filter(Boolean).forEach((term) => {
+          andConditions.push({ title: { contains: term, mode: "insensitive" } });
+        });
+      }
+      if (exclude) {
+        exclude.split(/[,\s]+/).filter(Boolean).forEach((term) => {
+          andConditions.push({ NOT: { title: { contains: term, mode: "insensitive" } } });
+        });
+      }
+      const baseWhere = andConditions.length > 0 ? { AND: andConditions } : {};
 
-    const [conditions, types, categories, shipping, images, total] = await Promise.all([
-      prisma.soldComp.groupBy({ by: ["condition"], where: baseWhere, _count: true, orderBy: { _count: { condition: "desc" } }, take: 15 }),
-      prisma.soldComp.groupBy({ by: ["listingType"], where: baseWhere, _count: true, orderBy: { _count: { listingType: "desc" } }, take: 10 }),
-      prisma.soldComp.groupBy({ by: ["category"], where: baseWhere, _count: true, orderBy: { _count: { category: "desc" } }, take: 50 }),
-      prisma.soldComp.groupBy({
-        by: ["shippingPrice"],
-        where: { ...baseWhere, shippingPrice: 0 },
-        _count: true,
-      }).then((r) => r[0]?._count || 0),
-      prisma.soldComp.count({ where: { ...baseWhere, imageUrl: { not: null } } }),
-      prisma.soldComp.count({ where: baseWhere }),
-    ]);
+      const [conditions, types, categories, shipping, images, total] = await Promise.all([
+        prisma.soldComp.groupBy({ by: ["condition"], where: baseWhere, _count: true, orderBy: { _count: { condition: "desc" } }, take: 15 }),
+        prisma.soldComp.groupBy({ by: ["listingType"], where: baseWhere, _count: true, orderBy: { _count: { listingType: "desc" } }, take: 10 }),
+        prisma.soldComp.groupBy({ by: ["category"], where: baseWhere, _count: true, orderBy: { _count: { category: "desc" } }, take: 50 }),
+        prisma.soldComp.groupBy({ by: ["shippingPrice"], where: { ...baseWhere, shippingPrice: 0 }, _count: true }).then((r) => r[0]?._count || 0),
+        prisma.soldComp.count({ where: { ...baseWhere, imageUrl: { not: null } } }),
+        prisma.soldComp.count({ where: baseWhere }),
+      ]);
 
-    const freeShipCount = typeof shipping === "number" ? shipping : 0;
-
-    res.json({
-      total,
-      categories: categories.filter((c) => c.category).map((c) => ({ value: c.category, count: c._count })),
-      conditions: conditions.filter((c) => c.condition).map((c) => ({ value: c.condition, count: c._count })),
-      listingTypes: types.filter((c) => c.listingType).map((c) => ({ value: c.listingType, count: c._count })),
-      freeShipping: freeShipCount,
-      withImages: images,
+      const freeShipCount = typeof shipping === "number" ? shipping : 0;
+      return {
+        total,
+        categories: categories.filter((c) => c.category).map((c) => ({ value: c.category, count: c._count })),
+        conditions: conditions.filter((c) => c.condition).map((c) => ({ value: c.condition, count: c._count })),
+        listingTypes: types.filter((c) => c.listingType).map((c) => ({ value: c.listingType, count: c._count })),
+        freeShipping: freeShipCount,
+        withImages: images,
+      };
     });
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

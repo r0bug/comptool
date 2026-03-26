@@ -8,10 +8,14 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 app.use(cors());
+app.use(require("compression")());
 app.use(express.json({ limit: "5mb" }));
 
-// Cached images
-app.use("/comp/images", express.static(path.join(__dirname, "../data/images")));
+// Cached images — 30-day browser cache, immutable (filenames are content-addressed)
+app.use("/comp/images", express.static(path.join(__dirname, "../data/images"), {
+  maxAge: "30d",
+  immutable: true,
+}));
 
 // Android app download
 app.get("/comp/android/download", (req, res) => {
